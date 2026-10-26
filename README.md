@@ -1,4 +1,4 @@
-# Stuffy Math (working title)
+# Toybox Math
 
 A standalone camera math game for the Meta Global AI Developer Hackathon (Oct 27 - Nov 4, 2026). Solo entry.
 

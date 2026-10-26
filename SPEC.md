@@ -1,4 +1,4 @@
-# Stuffy Math (working title)
+# Toybox Math
 
 A standalone camera math game for the Meta Global AI Developer Hackathon (Cerebral Valley, Oct 27 - Nov 4, 2026). Solo entry.
 
@@ -84,4 +84,3 @@ Build for Your World: Meta's models in a domain the builder knows firsthand (kid
 ## Open decisions
 
 - Fruit Ninja targets: staged objects on the table (proposed default) vs room scan. Staged is controllable and demo-reliable; room scan is the wow stretch.
-- Final game name. "Stuffy Math" is a working title only; alternatives under discussion.
