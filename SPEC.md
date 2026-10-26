@@ -1,0 +1,88 @@
+# Stuffy Math (working title)
+
+A standalone camera math game for the Meta Global AI Developer Hackathon (Cerebral Valley, Oct 27 - Nov 4, 2026). Solo entry.
+
+One line: kids upload a photo of a stuffed animal, it becomes their avatar, and their hands become the tools for camera math games.
+
+## Track
+
+Build for Your World: Meta's models in a domain the builder knows firsthand (kids' math games), making something possible that wasn't before.
+
+## Audience and kid rules
+
+- Players: young kids learning early math (counting, addition, ratios, times tables).
+- No fail states. Wrong answers get a cheerful retry, never a life lost or a timer running out.
+- Read-aloud everywhere: every problem and story beat is spoken as well as shown.
+- Streaks and progression are cosmetic only. Nothing that affects math difficulty is locked behind a paywall or a grind.
+- Camera frames are processed live and never stored. The only photo kept is the stuffed animal the player uploads.
+
+## Core loop
+
+1. Upload a photo of a stuffed animal. SAM 3.1 segments it out of the background and it becomes the player's avatar and companion.
+2. The avatar travels a story trail. Each stop on the trail is a camera math game.
+3. Finishing games advances the story and unlocks more stuffies and accessories.
+4. The same avatar appears in every mode: it cheers, holds the ratio boxes, and celebrates wins.
+
+## Stuffy system
+
+- Upload: one photo per stuffy, SAM cutout, player names it.
+- Persistent companion: the avatar follows the player across all modes.
+- Progression (proposed, not yet locked): the first stuffy unlocks fast through a short rescue quest in the first session. After that, more stuffy slots unlock with level, and each stuffy earns cosmetic accessories (hats, capes, glasses). See Open decisions.
+
+## Game modes
+
+### Core
+
+**Ratio counting.** Point the camera at real objects (blocks, toys, fruit). SAM segments and counts them, and the player sorts the counts into ratio boxes (for example, red to blue is 3 to 2). Turn-based, no real-time loop, the most SAM-native mode.
+
+**Fruit Ninja math.** Fruit sprites arc across the screen carrying numbers. The player's hand is the blade: SAM segments the hand from the webcam feed and the hand's path slices fruit. Math variants:
+- Slice the answer: a problem shows (7 + 5 = ?), fruit carry candidate answers, slice the right one.
+- Slice to build: collect 3 apples and 4 apples, then answer 7.
+- Slice the set: times tables version, slice all multiples of 3 and leave the rest.
+- Catch variant: same setup, but the hand is a basket and the player catches the right answer. Gentler for younger kids.
+- Proposed default: floating fruit that bob until sliced, so there is never a "you ran out of time" moment. See Open decisions.
+
+### Extra modes (same segment-and-count pipeline, cheap adds once counting works)
+
+- **Show me:** "show me 7" with fingers, blocks, or toys. SAM counts what is held up.
+- **Build the number:** arrange real blocks to make 10 (6 + 4). SAM counts and verifies.
+- **Sort by color or size:** SAM segments toys on the table, player sorts them into bins. Comparison language: more, fewer, bigger, smaller.
+- **Balance sides:** two zones on camera, SAM counts each side, which side has more?
+- **Estimation jar:** player estimates first, then SAM counts the pile and reveals. Estimation is a real skill almost no kids' app teaches.
+- **Pattern copy:** SAM sees a row of colored blocks, player copies the pattern.
+
+## Story and journey
+
+- The trail map is the journey: chapters with stops, each stop a game, finishing a chapter rescues a stuffy or unlocks an accessory.
+- Muse Spark (Meta Model API) generates the story layer: chapter intros tailored to the player's stuffy, quest text at each stop, celebration lines on chapter clears. Generated at session start and cached, never mid-game, so games never wait on the model.
+- The story is a narrator, not a chatbot. The game tells the story, the kid plays. No open-ended chat. This keeps the game clear of the hackathon's banned "simple AI for Education chatbot" category.
+
+## Tech approach
+
+- Web app with camera access. No install for judges to open, same as Math Buddies' browser play.
+- SAM 3.1 through the Meta Model API: stuffy cutout, object segmentation and counting, hand segmentation.
+- Muse Spark through the Meta Model API: story and quest text.
+- Fruit Ninja real-time loop: SAM as the anchor plus a lightweight on-device hand tracker for frame-to-frame play. SAM per frame over an API is not a 60fps slicing loop, so SAM segments the hand at calibration and whenever tracking is lost, and the tracker follows it in between. Demo at a table with decent lighting and one hand in frame.
+- The hackathon rule is to incorporate Meta's models, not to use only them. Hand trackers, game engines, and other libraries are fine alongside SAM and Spark.
+
+## Hackathon compliance
+
+- Repo public, new work only. Standalone game, not built on Math Buddies code, so there is no "what's new vs existing" ambiguity.
+- 3-minute demo video highlighting only what was built during the event.
+- Not a banned category: not a nutrition coach, not a simple image analyzer, not an education chatbot, not a medical advisor.
+- Submission due Wed Nov 4, 2026, 6:00 PM PT via the Cerebral Valley platform.
+
+## Build plan (Oct 27 - Nov 4)
+
+- Oct 27-28: scaffold plus SAM spike. Photo upload to stuffy cutout working, ratio counting prototype working. Validate SAM latency and counting accuracy on real photos before building on top of it. Claim the $150 Meta Model API credits day one, since distribution runs in batches.
+- Oct 29-30: Fruit Ninja prototype, SAM anchor plus tracker, math layer, floating fruit, kid rules.
+- Oct 31-Nov 2: lighter stretch (Oct 31 is Halloween). Progression (first rescue, accessories), polish, second mode only if the first two are stable.
+- Nov 3: full playtest, 3-minute demo video, repo public, submission page.
+- Nov 4: buffer and submit by 6:00 PM PT.
+
+## Open decisions
+
+- Stuffy progression model: rescue plus accessories (proposed) vs another model.
+- Fruit Ninja: floating fruit (proposed) vs falling fruit.
+- Core mode order: ratio first, Fruit Ninja as showpiece (proposed) vs Fruit Ninja first.
+- Final game name. "Stuffy Math" is a working title only.
