@@ -27,7 +27,7 @@ Build for Your World: Meta's models in a domain the builder knows firsthand (kid
 
 - Upload: one photo per stuffy, SAM cutout, player names it.
 - Persistent companion: the avatar follows the player across all modes.
-- Progression (proposed, not yet locked): the first stuffy unlocks fast through a short rescue quest in the first session. After that, more stuffy slots unlock with level, and each stuffy earns cosmetic accessories (hats, capes, glasses). See Open decisions.
+- Progression (locked Oct 26): the first stuffy unlocks fast through a short rescue quest in the first session, never a long grind before seeing your own toy. After that, more stuffy slots unlock with play, and each stuffy earns cosmetic accessories (hats, capes, glasses).
 
 ## Game modes
 
@@ -35,12 +35,13 @@ Build for Your World: Meta's models in a domain the builder knows firsthand (kid
 
 **Ratio counting.** Point the camera at real objects (blocks, toys, fruit). SAM segments and counts them, and the player sorts the counts into ratio boxes (for example, red to blue is 3 to 2). Turn-based, no real-time loop, the most SAM-native mode.
 
-**Fruit Ninja math.** Fruit sprites arc across the screen carrying numbers. The player's hand is the blade: SAM segments the hand from the webcam feed and the hand's path slices fruit. Math variants:
-- Slice the answer: a problem shows (7 + 5 = ?), fruit carry candidate answers, slice the right one.
-- Slice to build: collect 3 apples and 4 apples, then answer 7.
+**Fruit Ninja math, with real objects.** Instead of sprite fruit, the slicing targets are real objects SAM 3.1 segments from the camera feed. The game asks the player to put a few things on the table (toys, blocks, cups); SAM segments each one and a number label is overlaid on it. The player's hand is the blade: SAM segments the hand and the hand's path slices the object carrying the right answer. Objects stay put until sliced, so there is never a "you ran out of time" moment. Math variants:
+- Slice the answer: a problem shows (7 + 5 = ?), objects carry candidate answers, slice the right one.
+- Slice to build: collect 3 blocks and 4 blocks, then answer 7.
 - Slice the set: times tables version, slice all multiples of 3 and leave the rest.
 - Catch variant: same setup, but the hand is a basket and the player catches the right answer. Gentler for younger kids.
-- Proposed default: floating fruit that bob until sliced, so there is never a "you ran out of time" moment. See Open decisions.
+- Room-scan variant (stretch, not the default): instead of staged objects, SAM scans whatever is in the room and picks targets from it. More magical, less predictable, so it waits until staged slicing is solid.
+- Fallback: if SAM finds too few objects on the table, the game falls back to sprite fruit so the round never stalls.
 
 ### Extra modes (same segment-and-count pipeline, cheap adds once counting works)
 
@@ -75,14 +76,12 @@ Build for Your World: Meta's models in a domain the builder knows firsthand (kid
 ## Build plan (Oct 27 - Nov 4)
 
 - Oct 27-28: scaffold plus SAM spike. Photo upload to stuffy cutout working, ratio counting prototype working. Validate SAM latency and counting accuracy on real photos before building on top of it. Claim the $150 Meta Model API credits day one, since distribution runs in batches.
-- Oct 29-30: Fruit Ninja prototype, SAM anchor plus tracker, math layer, floating fruit, kid rules.
+- Oct 29-30: Fruit Ninja prototype, SAM anchor plus tracker, math layer, real-object slicing, kid rules.
 - Oct 31-Nov 2: lighter stretch (Oct 31 is Halloween). Progression (first rescue, accessories), polish, second mode only if the first two are stable.
 - Nov 3: full playtest, 3-minute demo video, repo public, submission page.
 - Nov 4: buffer and submit by 6:00 PM PT.
 
 ## Open decisions
 
-- Stuffy progression model: rescue plus accessories (proposed) vs another model.
-- Fruit Ninja: floating fruit (proposed) vs falling fruit.
-- Core mode order: ratio first, Fruit Ninja as showpiece (proposed) vs Fruit Ninja first.
-- Final game name. "Stuffy Math" is a working title only.
+- Fruit Ninja targets: staged objects on the table (proposed default) vs room scan. Staged is controllable and demo-reliable; room scan is the wow stretch.
+- Final game name. "Stuffy Math" is a working title only; alternatives under discussion.
