@@ -96,8 +96,8 @@ export default function App() {
         </section>
       )}
 
-      {screen === 'ratio' && <Ratio name={name} onWin={() => win('ratio')} onBack={() => setScreen('trail')} />}
-      {screen === 'ninja' && <Ninja name={name} onWin={() => win('ninja')} onBack={() => setScreen('trail')} />}
+      {screen === 'ratio' && <Ratio name={name} img={stuffy.img} onWin={() => win('ratio')} onBack={() => setScreen('trail')} />}
+      {screen === 'ninja' && <Ninja name={name} img={stuffy.img} onWin={() => win('ninja')} onBack={() => setScreen('trail')} />}
 
       {screen === 'celebrate' && (
         <section className="panel celebrate"><div className="bigStar">★</div><h1>Great job!</h1>
@@ -109,56 +109,107 @@ export default function App() {
   )
 }
 
-function Ratio({ name, onWin, onBack }: { name: string; onWin: () => void; onBack: () => void }) {
-  const [red] = useState(() => 2 + Math.floor(Math.random() * 3))
-  const [blue] = useState(() => 2 + Math.floor(Math.random() * 3) === red ? red + 1 : 2 + Math.floor(Math.random() * 2))
+
+async function sam(prompt: string, imageDataUrl: string) {
+  const r = await fetch('/api/sam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, imageDataUrl }) })
+  return r.json()
+}
+function Companion({ name, img, msg }: { name: string; img: string | null; msg: string }) {
+  return <div className="companion">{img ? <img src={img} alt={name} /> : <span className="compEmoji">🧸</span>}<div className="bubble"><strong>{name}:</strong> {msg}</div></div>
+}
+function CameraSnap({ onSnap }: { onSnap: (d: string) => void }) {
+  const video = useRef<HTMLVideoElement>(null); const stream = useRef<MediaStream | null>(null)
+  const [live, setLive] = useState(false); const [err, setErr] = useState('')
+  const start = async () => { try { stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); if (video.current) { video.current.srcObject = stream.current; setLive(true) } } catch { setErr('Camera is shy right now. You can upload a photo or play with the blocks instead!') } }
+  const stop = () => { stream.current?.getTracks().forEach(tr => tr.stop()); setLive(false) }
+  useEffect(() => () => stop(), [])
+  const snap = () => { const v = video.current; if (!v) return; const s = Math.min(1, 1024 / Math.max(v.videoWidth, v.videoHeight)); const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * s); c.height = Math.round(v.videoHeight * s); c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height); stop(); onSnap(c.toDataURL('image/jpeg', 0.85)) }
+  return <div className="camera">{live ? <><video ref={video} autoPlay playsInline muted className="camVideo" /><button className="btn big" onClick={snap}>📸 Snap! Let SAM count</button><button className="btn ghost" onClick={stop}>Stop camera</button></> : <button className="btn" onClick={start}>📷 Turn on the camera</button>}{err && <p className="note">{err}</p>}<p className="note">Camera pictures are only used for counting and are never saved.</p></div>
+}
+
+function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+  const totalRounds = 3
+  const [round, setRound] = useState(1); const [msg, setMsg] = useState(`Put some red things and blue things on the table, then snap a photo!`)
+  const [photo, setPhoto] = useState<string | null>(null); const [busy, setBusy] = useState(false)
+  const [counts, setCounts] = useState<{ red: number; blue: number } | null>(null)
   const [tapped, setTapped] = useState<Set<string>>(new Set())
-  const blocks = useMemo(() => [...Array(red).fill('red'), ...Array(blue).fill('blue')].map((c, i) => ({ c, id: `${c}-${i}` })), [red, blue])
-  const redCount = blocks.filter(b => b.c === 'red' && tapped.has(b.id)).length
-  const blueCount = blocks.filter(b => b.c === 'blue' && tapped.has(b.id)).length
-  const allTapped = tapped.size === blocks.length
-  const [samCount, setSamCount] = useState<string>('')
-  const samPhoto = async (f: File) => {
-    setSamCount('SAM is counting...')
-    const dataUrl = await new Promise<string>(res => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(f) })
-    try { const r = await fetch('/api/sam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: 'block', imageDataUrl: dataUrl }) }); const j = await r.json(); setSamCount(j.count != null ? `SAM counted ${j.count} blocks in your photo (${j.ms}ms). Tap-to-count always works too!` : 'SAM is resting - tap-to-count still works!') } catch { setSamCount('SAM is resting - tap-to-count still works!') }
+  const [blocksRound] = useState(() => ({ red: 2 + Math.floor(Math.random() * 3), blue: 3 + Math.floor(Math.random() * 2) }))
+  const blocks = useMemo(() => [...Array(blocksRound.red).fill('red'), ...Array(blocksRound.blue).fill('blue')].map((c, i) => ({ c, id: `${c}-${i}` })), [round])
+  useEffect(() => { speak(msg) }, [round])
+  const next = () => { if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setCounts(null); setTapped(new Set()); setMsg(`Round ${round + 1}! Show me red and blue things again — SAM will count them.`) } }
+  const onSnap = async (d: string) => {
+    setPhoto(d); setBusy(true); setMsg('SAM is counting your red and blue things...')
+    try {
+      const [r, b] = [await sam('red object', d), await sam('blue object', d)]
+      if ((r.count || 0) + (b.count || 0) === 0) { setMsg('SAM could not see red or blue things. Spread them out, give them space, and snap again!'); setBusy(false); return }
+      setCounts({ red: r.count, blue: b.count }); setMsg(`SAM counted ${r.count} red and ${b.count} blue! Which color has more?`)
+      speak(`SAM counted ${r.count} red and ${b.count} blue. Which color has more?`)
+    } catch { setMsg('SAM is resting. Play this round with the tap blocks below!') }
+    setBusy(false)
   }
-  useEffect(() => { speak(`Tap every block to count them. Then tell me which color has more.`) }, [])
-  const answer = (choice: string) => {
-    const correct = red > blue ? 'red' : 'blue'
-    if (choice === correct) { pop(700); onWin() } else { pop(220); speak(`Good try! Count again with ${name}. You can do it!`) }
+  const answer = (choice: 'red' | 'blue') => {
+    const truth = counts ? (counts.red > counts.blue ? 'red' : counts.blue > counts.red ? 'blue' : 'same') : (blocksRound.red > blocksRound.blue ? 'red' : 'blue')
+    if (choice === truth || truth === 'same') { pop(720); setMsg('Yes! Great counting!'); speak('Yes! Great counting!'); setTimeout(next, 900) }
+    else { pop(210); setMsg(`Good try! Count with your finger, one by one. ${name} is cheering for you!`); speak('Good try! Count again, one by one.') }
   }
-  return (<section className="panel"><h1>Counting Meadow</h1>
-    <p>Tap each block to count it. <strong>{redCount} red</strong> · <strong>{blueCount} blue</strong></p>
-    <div className="blocks">{blocks.map(b => <button key={b.id} className={`block ${b.c} ${tapped.has(b.id) ? 'counted' : ''}`} onClick={() => { setTapped(s => new Set(s).add(b.id)); pop(b.c === 'red' ? 500 : 380) }} aria-label={`${b.c} block`}>{tapped.has(b.id) ? '✓' : ''}</button>)}</div>
-    {allTapped ? <><p className="ask">Which color has more?</p><div className="row"><button className="btn redBtn" onClick={() => answer('red')}>Red ({red})</button><button className="btn blueBtn" onClick={() => answer('blue')}>Blue ({blue})</button></div></> : <p className="note">Keep tapping — count them all!</p>}
-    <label className="btn fileBtn">📷 SAM: count blocks in a photo<input type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && samPhoto(e.target.files[0])} /></label>
-    {samCount && <p className="cheer">{samCount}</p>}
+  const useBlocks = !photo
+  const shownRed = counts?.red ?? blocksRound.red, shownBlue = counts?.blue ?? blocksRound.blue
+  const redTapped = blocks.filter(x => x.c === 'red' && tapped.has(x.id)).length, blueTapped = blocks.filter(x => x.c === 'blue' && tapped.has(x.id)).length
+  const ready = counts ? true : tapped.size === blocks.length
+  return (<section className="panel"><h1>Counting Meadow</h1><p className="roundBadge">Round {round} of {totalRounds}</p>
+    <Companion name={name} img={img} msg={msg} />
+    {!photo && <CameraSnap onSnap={onSnap} />}
+    {photo && <div className="photoWrap"><img src={photo} alt="Your table" className="tablePhoto" />{counts && <div className="countChips"><span className="chip redChip">Red: {counts.red}</span><span className="chip blueChip">Blue: {counts.blue}</span></div>}</div>}
+    {busy && <p className="cheer">SAM is looking…</p>}
+    {useBlocks && <><p>Or tap every block to count it. <strong>{redTapped} red</strong> · <strong>{blueTapped} blue</strong></p>
+      <div className="blocks">{blocks.map(b => <button key={b.id} className={`block ${b.c} ${tapped.has(b.id) ? 'counted' : ''}`} onClick={() => { setTapped(s => new Set(s).add(b.id)); pop(b.c === 'red' ? 500 : 380) }}>{tapped.has(b.id) ? '✓' : ''}</button>)}</div></>}
+    {photo && !counts && !busy && <button className="btn" onClick={() => { setPhoto(null); setMsg('Okay, new photo! Show SAM your red and blue things.') }}>📷 Snap again</button>}
+    {ready && <><p className="ask">Which color has more?</p><div className="row"><button className="btn redBtn" onClick={() => answer('red')}>Red ({shownRed})</button><button className="btn blueBtn" onClick={() => answer('blue')}>Blue ({shownBlue})</button></div></>}
     <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
 }
 
-function Ninja({ name, onWin, onBack }: { name: string; onWin: () => void; onBack: () => void }) {
-  const [mode, setMode] = useState<'add' | 'set'>('add')
-  const [a] = useState(() => 3 + Math.floor(Math.random() * 5)); const [b] = useState(() => 2 + Math.floor(Math.random() * 5))
-  const [sliced, setSliced] = useState<Set<number>>(new Set()); const [msg, setMsg] = useState('')
-  const dragging = useRef(false)
-  const answer = a + b
-  const options = useMemo(() => [...new Set([answer, answer + 2, answer - 1, answer + 4])].sort(() => 0.5 - Math.random()), [answer])
-  const setTargets = [3, 6, 4, 9, 5, 12]; const setAnswer = useMemo(() => new Set(setTargets.filter(n => n % 3 === 0)), [])
-  useEffect(() => { speak(mode === 'add' ? `Slice the answer! What is ${a} plus ${b}? Drag across the right number.` : `Slice all the multiples of 3! Drag across them.`) }, [mode])
-  const slice = (n: number) => {
-    if (sliced.has(n)) return
-    if (mode === 'add') { if (n === answer) { setSliced(new Set([n])); pop(800); setTimeout(onWin, 500) } else { pop(200); setMsg(`Good try! ${name} believes in you — try another one.`); speak(`Good try! Try another one.`) } }
-    else { if (setAnswer.has(n)) { const s = new Set(sliced).add(n); setSliced(s); pop(650); if (s.size === setAnswer.size) setTimeout(onWin, 500) } else { pop(200); setMsg(`${n} is not a multiple of 3. Keep looking!`); speak(`${n} is not a multiple of 3. Keep looking!`) } }
+function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+  const totalRounds = 5
+  const [round, setRound] = useState(1)
+  const [problem, setProblem] = useState(() => ({ a: 3 + Math.floor(Math.random() * 5), b: 2 + Math.floor(Math.random() * 5) }))
+  const [msg, setMsg] = useState('Put toys or blocks on the table and snap a photo. SAM will turn them into number fruit!')
+  const [photo, setPhoto] = useState<string | null>(null); const [busy, setBusy] = useState(false)
+  const [labels, setLabels] = useState<{ n: number; x: number; y: number; w: number; h: number }[]>([])
+  const [sliced, setSliced] = useState<Set<number>>(new Set()); const dragging = useRef(false)
+  const answer = problem.a + problem.b
+  useEffect(() => { speak(`What is ${problem.a} plus ${problem.b}? Slice the fruit with that number!`) }, [problem])
+  const newProblem = () => setProblem({ a: 3 + Math.floor(Math.random() * 6), b: 2 + Math.floor(Math.random() * 6) })
+  const next = () => { if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setLabels([]); setSliced(new Set()); newProblem(); setMsg(`Round ${round + 1}! New table, new problem. Snap your toys!`) } }
+  const spriteLabels = () => { const opts = [...new Set([answer, answer + 2, answer - 1, answer + 4])]; return opts.map((n, i) => ({ n, x: 6 + i * 24, y: 30 + (i % 2) * 28, w: 20, h: 26 })) }
+  const onSnap = async (d: string) => {
+    setPhoto(d); setBusy(true); setMsg('SAM is finding your toys...')
+    try {
+      let j = await sam('toy block', d); if (!j.count || j.count < 3) j = await sam('object', d)
+      if (!j.boxes || j.boxes.length < 3) { setLabels(spriteLabels()); setMsg('SAM found fewer than 3 toys, so magic sprite fruit appeared instead! Slice the answer!') }
+      else {
+        const vals = [...new Set([answer, answer + 2, answer - 1, answer + 4, answer + 1])]
+        setLabels(j.boxes.map((b: any, i: number) => ({ n: vals[i % vals.length], x: b.x1 / b.frameW * 100, y: b.y1 / b.frameH * 100, w: (b.x2 - b.x1) / b.frameW * 100, h: (b.y2 - b.y1) / b.frameH * 100 })))
+        setMsg(`SAM found ${j.boxes.length} toys! Slice the one that says ${answer}!`)
+      }
+      speak(`Slice the fruit that says ${answer}!`)
+    } catch { setLabels(spriteLabels()); setMsg('SAM is resting, so sprite fruit appeared! Slice the answer!') }
+    setBusy(false)
   }
-  const targets = mode === 'add' ? options : setTargets
-  return (<section className="panel"><h1>Fruit Slice Grove</h1>
-    <div className="row"><button className={`btn ${mode === 'add' ? '' : 'ghost'}`} onClick={() => { setMode('add'); setSliced(new Set()) }}>Slice the answer</button><button className={`btn ${mode === 'set' ? '' : 'ghost'}`} onClick={() => { setMode('set'); setSliced(new Set()) }}>Slice multiples of 3</button></div>
-    <p className="ask">{mode === 'add' ? `${a} + ${b} = ?` : 'Slice every multiple of 3!'}</p>
-    <p className="note">Drag your finger or mouse across a fruit to slice it. Using a camera hand? That arrives with SAM anchoring — pointer slicing always works.</p>
-    <div className="grove" onPointerUp={() => dragging.current = false} onPointerLeave={() => dragging.current = false}>
-      {targets.map(n => <button key={n} className={`fruit ${sliced.has(n) ? 'sliced' : ''}`}
-        onPointerDown={() => { dragging.current = true; slice(n) }} onPointerEnter={() => dragging.current && slice(n)}>{sliced.has(n) ? '✂️ ' : '🍎 '}{n}</button>)}
-    </div>{msg && <p className="cheer">{msg}</p>}
+  const slice = (n: number, i: number) => {
+    if (sliced.has(i)) return
+    if (n === answer) { setSliced(new Set([i])); pop(820); setMsg('Slice! You found it!'); speak('Slice! You found it!'); setTimeout(next, 1000) }
+    else { pop(200); setMsg(`That one says ${n}. Good try — find ${answer}! ${name} believes in you.`); speak(`That one says ${n}. Find ${answer}!`) }
+  }
+  return (<section className="panel"><h1>Fruit Slice Grove</h1><p className="roundBadge">Round {round} of {totalRounds}</p>
+    <Companion name={name} img={img} msg={msg} />
+    <p className="ask">{problem.a} + {problem.b} = ?</p>
+    {!photo && <><CameraSnap onSnap={onSnap} /><p className="note">No toys handy?</p><button className="btn" onClick={() => { setPhoto('sprite'); setLabels(spriteLabels()) }}>🍎 Play with sprite fruit</button></>}
+    {busy && <p className="cheer">SAM is looking…</p>}
+    {photo && labels.length > 0 && <div className={`stage ${photo === 'sprite' ? 'spriteStage' : ''}`} onPointerUp={() => dragging.current = false} onPointerLeave={() => dragging.current = false}>
+      {photo !== 'sprite' && <img src={photo} alt="Your table toys" className="stageImg" />}
+      {labels.map((l, i) => <button key={i} className={`fruitTag ${sliced.has(i) ? 'sliced' : ''}`} style={{ left: `${l.x}%`, top: `${l.y}%`, width: `${Math.max(l.w, 14)}%`, minHeight: `${Math.max(l.h, 14)}%` }}
+        onPointerDown={() => { dragging.current = true; slice(l.n, i) }} onPointerEnter={() => dragging.current && slice(l.n, i)}>{sliced.has(i) ? '✂️' : '🍎'} {l.n}</button>)}
+    </div>}
+    {photo && !busy && labels.length > 0 && <button className="btn ghost" onClick={() => { setPhoto(null); setLabels([]); setMsg('New photo! Put toys on the table and snap.') }}>📷 New table photo</button>}
     <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
 }
