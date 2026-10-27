@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { IconBalance, IconBuild, IconCount, IconHunt, IconJar, IconLamp, IconPattern, IconShow, IconSlice, IconSpot, IconCatch, IconSort, IconFingers, IconMischief, IconDoor } from './icons'
+import { IconBalance, IconBuild, IconCount, IconHunt, IconJar, IconLamp, IconPattern, IconShow, IconSlice, IconSpot, IconCatch, IconSort, IconFingers, IconMischief, IconDoor, IconEye } from './icons'
 
-type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'estimate' | 'pattern' | 'hunt' | 'spotlight' | 'catch' | 'sortsize' | 'fingers' | 'mischief' | 'doors' | 'home_tree' | 'celebrate'
+type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'estimate' | 'pattern' | 'hunt' | 'spotlight' | 'catch' | 'sortsize' | 'fingers' | 'mischief' | 'doors' | 'livevision' | 'home_tree' | 'celebrate'
 type Stuffy = { name: string; img: string | null; hat: boolean; cape?: boolean; glasses?: boolean }
 export type LevelId = 'sprout' | 'explorer' | 'ranger'
 export const LEVELS: Record<LevelId, { label: string; sub: string; icon: string; addA: [number, number]; addB: [number, number]; useSub: boolean; buildGoal: number; show: [number, number]; fingers: [number, number]; patternLen: number; pileMax: number; jar: [number, number]; guesses: number[] }> = {
@@ -14,7 +14,7 @@ export const mkProblem = (lv: (typeof LEVELS)[LevelId]) => {
   if (lv.useSub && Math.random() < 0.45) { const a = rnd([18, 45]); const b = rnd([5, a - 3]); return { a, b, op: '−' as const, answer: a - b } }
   const a = rnd(lv.addA), b = rnd(lv.addB); return { a, b, op: '+' as const, answer: a + b }
 }
-const STOP_ICONS: Record<string, () => JSX.Element> = { ratio: IconCount, ninja: IconSlice, showme: IconShow, build: IconBuild, balance: IconBalance, estimate: IconJar, pattern: IconPattern, hunt: IconHunt, spotlight: IconSpot, catch: IconCatch, sortsize: IconSort, fingers: IconFingers, mischief: IconMischief, doors: IconDoor, home_tree: IconLamp }
+const STOP_ICONS: Record<string, () => JSX.Element> = { ratio: IconCount, ninja: IconSlice, showme: IconShow, build: IconBuild, balance: IconBalance, estimate: IconJar, pattern: IconPattern, hunt: IconHunt, spotlight: IconSpot, catch: IconCatch, sortsize: IconSort, fingers: IconFingers, mischief: IconMischief, doors: IconDoor, livevision: IconEye, home_tree: IconLamp }
 const STOPS = [
   { id: 'ratio', label: 'Dresser Drawer', sub: 'Counting blocks', prize: '' },
   { id: 'ninja', label: 'Nightstand Slice', sub: 'Fruit Ninja math', prize: 'hat' },
@@ -30,6 +30,7 @@ const STOPS = [
   { id: 'fingers', label: 'Finger Meadow', sub: 'Answer with your fingers', prize: '' },
   { id: 'mischief', label: 'Find the Mischief', sub: 'SAM gives the clues', prize: '' },
   { id: 'doors', label: 'Story Doors', sub: 'Pick where the story goes', prize: '' },
+  { id: 'livevision', label: 'SAM Live Vision', sub: 'SAM watches your table live', prize: '' },
   { id: 'home_tree', label: 'The Warm Lamp', sub: 'Home, at last', prize: 'cape' },
 ] as const
 const FALLBACK_STORY = (n: string) => `${n} is lost in the bedroom after lights-out! Cross the nightstand, climb the bookshelf, and follow the warm lamp home. Every stop you finish earns a star.`
@@ -181,7 +182,7 @@ export default function App() {
               <path d="M84 74h8l3 10H81z" fill="#fb8c00" stroke="#6d4c2f" strokeWidth="0.7" /><circle cx="88" cy="88" r="5" fill="#ffe9a8" opacity="0.35" />
             </svg>
             <svg className="mapPath" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M12 6 C 70 14, 88 22, 82 34 C 76 46, 20 44, 14 56 C 9 67, 78 68, 84 78 C 89 87, 45 92, 30 96" fill="none" stroke="#d7ad58" strokeWidth="1.8" strokeDasharray="4 3" strokeLinecap="round" /></svg>
-            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); const isNext = unlocked && !isDone; const Icon = STOP_ICONS[s.id]; const pos = [{ l: 4, t: 0 }, { l: 68, t: 6 }, { l: 64, t: 15 }, { l: 8, t: 20 }, { l: 5, t: 29 }, { l: 60, t: 34 }, { l: 64, t: 44 }, { l: 16, t: 48 }, { l: 58, t: 58 }, { l: 12, t: 62 }, { l: 60, t: 70 }, { l: 14, t: 74 }, { l: 58, t: 83 }, { l: 14, t: 86 }, { l: 30, t: 93 }][i]
+            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); const isNext = unlocked && !isDone; const Icon = STOP_ICONS[s.id]; const pos = [{ l: 4, t: 0 }, { l: 68, t: 5 }, { l: 64, t: 13 }, { l: 8, t: 18 }, { l: 5, t: 26 }, { l: 60, t: 31 }, { l: 64, t: 40 }, { l: 16, t: 44 }, { l: 58, t: 52 }, { l: 12, t: 57 }, { l: 60, t: 64 }, { l: 14, t: 68 }, { l: 58, t: 76 }, { l: 14, t: 79 }, { l: 58, t: 86 }, { l: 26, t: 91 }][i]
               return <button key={s.id} disabled={!unlocked} className={`mapStop ${isDone ? 'doneStop' : ''} ${isNext ? 'nextStop' : ''}`} style={{ left: `${pos.l}%`, top: `${pos.t}%` }} onClick={() => setScreen(s.id as Screen)}>
                 <span className="mapIcon"><Icon /></span><span className="mapLabel"><strong>{isDone ? '★ ' : !unlocked ? '🔒 ' : ''}{s.label}</strong><small>{s.sub}{s.prize ? ` · prize ${s.prize === 'hat' ? '🎩' : s.prize === 'glasses' ? '🕶️' : '🦸'}` : ''}</small></span>
                 {isNext && stuffy.img && <img className="mapBuddy" src={stuffy.img} alt={name} />}</button> })}
@@ -205,6 +206,7 @@ export default function App() {
       {screen === 'fingers' && <Fingers name={name} lv={lv} img={stuffy.img} onWin={() => win('fingers')} onBack={() => setScreen('trail')} />}
       {screen === 'mischief' && <Mischief name={name} img={stuffy.img} onWin={() => win('mischief')} onBack={() => setScreen('trail')} />}
       {screen === 'doors' && <StoryDoors name={name} img={stuffy.img} onWin={() => win('doors')} onBack={() => setScreen('trail')} />}
+      {screen === 'livevision' && <LiveVision name={name} img={stuffy.img} onWin={() => win('livevision')} onBack={() => setScreen('trail')} />}
       {screen === 'home_tree' && <HomeTree name={friend.img ? `${name} and ${friend.name}` : name} img={stuffy.img} doneCount={done.length} total={STOPS.length} onWin={() => win('home_tree')} onBack={() => setScreen('trail')} />}
 
       {screen === 'celebrate' && (
@@ -657,5 +659,45 @@ function StoryDoors({ name, img, onWin, onBack }: { name: string; img: string | 
     {loading && <p className="cheer">Muse Spark is writing the next page…</p>}
     {scene && <><p className="story storyScene">{name} {scene.scene}</p><p className="ask">Which way, storyteller?</p>
       <div className="doorRow"><button className="btn doorBtn" onClick={() => pick(scene.a)}>🚪 {scene.a}</button><button className="btn doorBtn alt" onClick={() => pick(scene.b)}>🚪 {scene.b}</button></div></>}
+    </section>)
+}
+
+function LiveVision({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+  const video = useRef<HTMLVideoElement>(null); const stream = useRef<MediaStream | null>(null); const busy = useRef(false); const dead = useRef(false)
+  const [word, setWord] = useState('toy'); const wordRef = useRef(word); wordRef.current = word
+  const [boxes, setBoxes] = useState<any[]>([]); const [scanning, setScanning] = useState(false); const [sightings, setSightings] = useState(0); const sightRef = useRef(0)
+  const [live, setLive] = useState(false); const [err, setErr] = useState(''); const [lastMs, setLastMs] = useState<number | null>(null); const won = useRef(false)
+  const [msg, setMsg] = useState('SAM can watch your table LIVE! Point the camera at toys and SAM keeps spotting them, over and over.')
+  const stop = () => { stream.current?.getTracks().forEach(tr => tr.stop()) }
+  useEffect(() => () => { dead.current = true; stop() }, [])
+  const start = async () => {
+    try { stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); setLive(true); setMsg(`SAM is looking for "${word}"... hold the camera steady!`); speak('SAM is watching!')
+      setTimeout(() => { if (video.current && stream.current) { video.current.srcObject = stream.current; video.current.play().catch(() => {}) } }, 60) } catch { setErr('Camera is shy right now. The other games still work!') }
+  }
+  useEffect(() => {
+    if (!live) return
+    const iv = setInterval(async () => {
+      const v = video.current; if (!v || busy.current || dead.current || !v.videoWidth) return
+      busy.current = true; setScanning(true)
+      try { const s = Math.min(1, 640 / Math.max(v.videoWidth, v.videoHeight)); const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * s); c.height = Math.round(v.videoHeight * s); c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height)
+        const j = await sam(wordRef.current, c.toDataURL('image/jpeg', 0.75))
+        if (dead.current) return
+        setBoxes(j.boxes || []); setLastMs(j.ms || null)
+        if (j.count > 0) { sightRef.current++; setSightings(sightRef.current); if (sightRef.current >= 3 && !won.current) { won.current = true; setMsg(`SAM spotted "${wordRef.current}" ${sightRef.current} times in a row — Live Vision star!`); speak('SAM keeps finding it! Live Vision star!'); setTimeout(onWin, 3000) } else setMsg(`SAM sees ${j.count} × ${wordRef.current}! (${sightRef.current} of 3 sightings)`) }
+        else setMsg(`SAM is looking for "${wordRef.current}"... show it a toy!`)
+      } catch { if (!dead.current) setMsg('SAM blinked — still watching...') }
+      busy.current = false; if (!dead.current) setScanning(false)
+    }, 2600)
+    return () => clearInterval(iv)
+  }, [live])
+  return (<section className="panel"><h1>SAM Live Vision</h1><GameTop onBack={onBack} />
+    <Companion name={name} img={img} msg={msg} />
+    <div className="wordChips">{['toy', 'cup', 'apple', 'banana', 'book', 'teddy bear', 'block'].map(w => <button key={w} className={`btn ${word === w ? '' : 'ghost'} chipBtn`} onClick={() => { setWord(w); sightRef.current = 0; setSightings(0); won.current = false; setBoxes([]) }}>{w}</button>)}</div>
+    {!live && <button className="btn big" onClick={start}>📷 Start Live Vision</button>}{err && <p className="note">{err}</p>}
+    {live && <div className="visionWrap liveStage"><video ref={video} autoPlay playsInline muted className="camVideo" />
+      {boxes.map((b, i) => <div key={i} className="visionBox liveBox" style={{ left: `${b.x1 / b.frameW * 100}%`, top: `${b.y1 / b.frameH * 100}%`, width: `${(b.x2 - b.x1) / b.frameW * 100}%`, height: `${(b.y2 - b.y1) / b.frameH * 100}%` }}>{word}</div>)}
+      <div className={`scanBadge ${scanning ? 'scanning' : ''}`}>{scanning ? 'SAM is looking…' : `SAM Vision · ${boxes.length} found${lastMs ? ` · ${Math.round(lastMs / 100) / 10}s` : ''}`}</div>
+      <div className="sightBadge">★ Sightings {sightings} of 3</div></div>}
+    <p className="note">SAM 3.1 re-reads your table every few seconds. The outlines stay on your things between looks — that is SAM remembering your world.</p>
     </section>)
 }

@@ -55,7 +55,7 @@ h1{font-family:"Baloo 2",cursive;font-size:38px;margin:8px 0}.btn{background:#43
 .huntList{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0}
 .foundChip{background:#43a047}.hideChip{background:#fb8c00}
 
-.mapScene{position:relative;height:880px;margin:18px 0;border:3px solid #6d4c2f;border-radius:20px;background:linear-gradient(#2b3a6b 0 46%, #6d4c2f 46% 47.5%, #a9743f 47.5% 100%);overflow:hidden}
+.mapScene{position:relative;height:940px;margin:18px 0;border:3px solid #6d4c2f;border-radius:20px;background:linear-gradient(#2b3a6b 0 46%, #6d4c2f 46% 47.5%, #a9743f 47.5% 100%);overflow:hidden}
 .mapPath{position:absolute;inset:0;width:100%;height:100%}
 .moon{position:absolute;right:12px;top:8px;font-size:30px}.windowStars{position:absolute;left:14px;top:10px;color:#ffe9a8;letter-spacing:8px}
 .mapStop{position:absolute;display:flex;gap:8px;align-items:center;background:transparent;border:none;cursor:pointer;font-family:inherit;text-align:left;max-width:230px}
@@ -125,3 +125,10 @@ input[type="text"],input:not([type]){border:2.5px solid #d8cdb2!important}
 .levelCard{display:grid;justify-items:center;gap:1px;background:#fff;border:2.5px solid #d8cdb2;border-bottom:5px solid #ded2b8;border-radius:16px;padding:12px 16px;cursor:pointer;font-family:inherit;min-width:132px;color:var(--ink)}
 .levelCard span{font-size:26px}.levelCard strong{font-size:17px}.levelCard small{font-weight:700;color:#8a7a5c}
 .levelCard.levelOn{background:#e8f5e9;border-color:#58a700;border-bottom-color:#46a302}
+.wordChips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+.chipBtn{padding:8px 16px;font-size:16px}
+.liveStage{border-radius:18px;overflow:hidden;border:3px solid #263238}
+.liveBox{border-color:#00e676;background:rgba(0,230,118,.18);font-size:15px;transition:left .5s, top .5s, width .5s, height .5s}
+.scanBadge{position:absolute;left:10px;bottom:10px;background:rgba(20,20,40,.85);color:#a5ffb0;border-radius:999px;padding:5px 14px;font-weight:800;font-size:14px}
+.scanBadge.scanning{color:#ffe082}
+.sightBadge{position:absolute;right:10px;top:10px;background:rgba(20,20,40,.85);color:#ffd54f;border-radius:999px;padding:5px 14px;font-weight:800;font-size:14px}
