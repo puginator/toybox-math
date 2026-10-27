@@ -27,6 +27,8 @@ export default function App() {
   const [stuffy, setStuffy] = useState<Stuffy>(() => { try { return JSON.parse(localStorage.getItem('toybox-stuffy') || 'null') || { name: 'Biscuit', img: null, hat: false } } catch { return { name: 'Biscuit', img: null, hat: false } } })
   const [stars, setStars] = useState(() => Number(localStorage.getItem('toybox-stars') || 0))
   const [samStatus, setSamStatus] = useState('Demo mode: SAM proxy not configured yet — fallbacks keep every game playable.')
+  const [candidates, setCandidates] = useState<{ img: string; area: number }[]>([])
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
   const name = stuffy.name || 'Biscuit'
 
   useEffect(() => { localStorage.setItem('toybox-stuffy', JSON.stringify(stuffy)) }, [stuffy])
@@ -39,42 +41,64 @@ export default function App() {
   useEffect(() => { localStorage.setItem('toybox-done', JSON.stringify(done)) }, [done])
   const win = (game: string) => { jingle(); setStars(s => s + 1); if (!done.includes(game)) setDone(d => [...d, game]); pop(760); speak(`You did it! ${name} is so proud of you!`); if (game === 'ninja') setStuffy(s => ({ ...s, hat: true })); if (game === 'build') setStuffy(s => ({ ...s, glasses: true })); if (game === 'home_tree') setStuffy(s => ({ ...s, cape: true })); setScreen('celebrate') }
 
+  const applyMask = (img: HTMLImageElement, b: any, mask: any) => {
+    const sx = img.width / (b.frameW || img.width), sy = img.height / (b.frameH || img.height)
+    const out = document.createElement('canvas'); out.width = Math.max(1, Math.round((b.x2 - b.x1) * sx)); out.height = Math.max(1, Math.round((b.y2 - b.y1) * sy))
+    const ctx = out.getContext('2d')!; ctx.drawImage(img, b.x1 * sx, b.y1 * sy, out.width, out.height, 0, 0, out.width, out.height)
+    if (mask?.rasterB64) {
+      const raw = Uint8Array.from(atob(mask.rasterB64), ch => ch.charCodeAt(0))
+      const mc = document.createElement('canvas'); mc.width = mask.width; mc.height = mask.height
+      const mctx = mc.getContext('2d')!; const id = mctx.createImageData(mask.width, mask.height)
+      for (let i = 0; i < raw.length; i++) id.data[i * 4 + 3] = raw[i] ? 255 : 0
+      mctx.putImageData(id, 0, 0); ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(mc, 0, 0, out.width, out.height); ctx.globalCompositeOperation = 'source-over'
+    }
+    return out.toDataURL('image/png')
+  }
+  const tryCutout = async (dataUrl: string, prompts: string[]) => {
+    for (const prompt of prompts) {
+      try {
+        const r = await fetch('/api/sam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, imageDataUrl: dataUrl }) })
+        const j = await r.json()
+        if (j.boxes?.length) return j
+      } catch {}
+    }
+    return null
+  }
   const onUpload = async (f: File) => {
-    setSamStatus('Looking at your stuffy...')
-    // Downscale first: phone photos are multi-MB and slow/oversized for the API.
+    setCandidates([]); setSamStatus('Looking at your stuffy...')
     const bmp = await createImageBitmap(f).catch(() => null)
     if (!bmp) { setSamStatus('That photo would not open - try another one.'); return }
     const scale = Math.min(1, 1024 / Math.max(bmp.width, bmp.height))
     const c0 = document.createElement('canvas'); c0.width = Math.round(bmp.width * scale); c0.height = Math.round(bmp.height * scale)
     c0.getContext('2d')!.drawImage(bmp, 0, 0, c0.width, c0.height)
     const dataUrl = c0.toDataURL('image/jpeg', 0.85)
-    setStuffy(s => ({ ...s, img: dataUrl })); speak('What a wonderful stuffy! SAM is cutting out your friend.')
-    setSamStatus('SAM 3.1 is cutting out your stuffy...')
-    try {
-      const r = await fetch('/api/sam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: 'stuffed animal toy', imageDataUrl: dataUrl }) })
-      const j = await r.json()
-      const img = new Image()
-      img.onload = () => {
-        // Pair the largest box with its mask (records arrive box-then-mask, in order).
-        let bi = 0, best = -1; (j.boxes || []).forEach((b: any, i: number) => { const a = (b.x2 - b.x1) * (b.y2 - b.y1); if (a > best) { best = a; bi = i } })
-        const b = j.boxes?.[bi]; const mask = j.masks?.[bi]
-        if (!b) { setSamStatus('SAM could not spot a stuffy in that photo. Try a clearer photo with your stuffy in the middle!'); return }
-        const sx = img.width / (b.frameW || img.width), sy = img.height / (b.frameH || img.height)
-        const out = document.createElement('canvas'); out.width = Math.max(1, Math.round((b.x2 - b.x1) * sx)); out.height = Math.max(1, Math.round((b.y2 - b.y1) * sy))
-        const ctx = out.getContext('2d')!; ctx.drawImage(img, b.x1 * sx, b.y1 * sy, out.width, out.height, 0, 0, out.width, out.height)
-        if (mask?.rasterB64) {
-          // True cutout: SAM mask becomes the alpha channel, background goes transparent.
-          const raw = Uint8Array.from(atob(mask.rasterB64), ch => ch.charCodeAt(0))
-          const mc = document.createElement('canvas'); mc.width = mask.width; mc.height = mask.height
-          const mctx = mc.getContext('2d')!; const id = mctx.createImageData(mask.width, mask.height)
-          for (let i = 0; i < raw.length; i++) { id.data[i * 4 + 3] = raw[i] ? 255 : 0 }
-          mctx.putImageData(id, 0, 0)
-          ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(mc, 0, 0, out.width, out.height); ctx.globalCompositeOperation = 'source-over'
-          setSamStatus(`SAM 3.1 cut out your stuffy in ${j.ms}ms!`); speak('SAM cut out your stuffy! Look, no background!')
-        } else setSamStatus('SAM found your stuffy but sent no outline - showing a cropped photo.')
-        setStuffy(s => ({ ...s, img: out.toDataURL('image/png') }))
-      }; img.src = dataUrl
-    } catch { setSamStatus('SAM is resting - showing your whole photo. The games still work!') }
+    setStuffy(s => ({ ...s, img: dataUrl })); setPendingPhoto(dataUrl)
+    speak('What a wonderful stuffy! SAM is cutting out your friend.'); setSamStatus('SAM 3.1 is cutting out your stuffy...')
+    const j = await tryCutout(dataUrl, ['stuffed animal', 'plush toy', 'stuffed toy', 'teddy bear'])
+    if (!j) { setSamStatus('SAM could not spot a stuffy in that photo. Tap your stuffy in the photo below, or try a clearer photo with your stuffy in the middle!'); return }
+    const img = new Image()
+    img.onload = () => {
+      const cands = (j.boxes || []).map((b: any, i: number) => ({ img: applyMask(img, b, j.masks?.[i]), area: (b.x2 - b.x1) * (b.y2 - b.y1) })).sort((a: any, b: any) => b.area - a.area)
+      if (!cands.length) { setSamStatus('SAM could not spot a stuffy in that photo. Tap your stuffy below!'); return }
+      if (cands.length === 1) { setStuffy(s => ({ ...s, img: cands[0].img })); setSamStatus(`SAM 3.1 cut out your stuffy in ${j.ms}ms!`); speak('SAM cut out your stuffy! Look, no background!') }
+      else { setCandidates(cands.slice(0, 4)); setSamStatus(`SAM found ${cands.length} things! Tap the one that is your stuffy.`) ; speak('Which one is your stuffy? Tap it!') }
+    }; img.src = dataUrl
+  }
+  const tapStuffy = async (e: React.MouseEvent<HTMLImageElement>) => {
+    if (!pendingPhoto) return
+    const rect = e.currentTarget.getBoundingClientRect(); const px = (e.clientX - rect.left) / rect.width, py = (e.clientY - rect.top) / rect.height
+    setSamStatus('SAM is looking where you tapped...')
+    const img = new Image(); img.onload = async () => {
+      const cw = Math.round(img.width * 0.6), ch = Math.round(img.height * 0.6)
+      const cx = Math.min(Math.max(Math.round(px * img.width - cw / 2), 0), img.width - cw), cy = Math.min(Math.max(Math.round(py * img.height - ch / 2), 0), img.height - ch)
+      const c = document.createElement('canvas'); c.width = cw; c.height = ch; c.getContext('2d')!.drawImage(img, cx, cy, cw, ch, 0, 0, cw, ch)
+      const j = await tryCutout(c.toDataURL('image/jpeg', 0.85), ['stuffed animal', 'plush toy', 'toy'])
+      if (!j?.boxes?.length) { setSamStatus('SAM still could not find it there. Try a closer, clearer photo of just your stuffy.'); return }
+      const img2 = new Image(); img2.onload = () => {
+        let bi = 0, best = -1; j.boxes.forEach((b: any, i: number) => { const a = (b.x2 - b.x1) * (b.y2 - b.y1); if (a > best) { best = a; bi = i } })
+        setStuffy(s => ({ ...s, img: applyMask(img2, j.boxes[bi], j.masks?.[bi]) })); setCandidates([]); setSamStatus(`SAM cut out your stuffy in ${j.ms}ms — thanks for pointing!`); speak('SAM found your stuffy!')
+      }; img2.src = c.toDataURL('image/jpeg', 0.85)
+    }; img.src = pendingPhoto
   }
 
   return (
@@ -95,6 +119,8 @@ export default function App() {
           <button className="btn ghost" onClick={() => speak(`Hello! I am ${name}. Let's play math games together!`)}>🔊 Hear {name} talk</button>
           {(stuffy.hat || stuffy.glasses || stuffy.cape) && <p className="note">{name}'s treasures: {stuffy.hat ? '🎩 party hat ' : ''}{stuffy.glasses ? '🕶️ star glasses ' : ''}{stuffy.cape ? '🦸 hero cape' : ''} — earned on the trail!</p>}
           <p className="note">{samStatus}</p>
+          {candidates.length > 0 && <div className="candRow">{candidates.map((c, i) => <button key={i} className="candBtn" onClick={() => { setStuffy(s => ({ ...s, img: c.img })); setCandidates([]); setSamStatus('What a great stuffy!'); speak('What a great stuffy!') }}><img src={c.img} alt={`Choice ${i + 1}`} /></button>)}</div>}
+          {pendingPhoto && candidates.length === 0 && samStatus.includes('could not') && <><p className="note">Tap your stuffy in your photo:</p><img src={pendingPhoto} alt="Your uploaded photo - tap your stuffy" className="tapPhoto" onClick={tapStuffy} /></>}
         </section>
       )}
 

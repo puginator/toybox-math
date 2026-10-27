@@ -39,3 +39,9 @@ h1{font-family:"Baloo 2",cursive;font-size:38px;margin:8px 0}.btn{background:#43
 .stage{position:relative}.tipDot{position:absolute;font-size:30px;transform:translate(-50%,-50%);pointer-events:none;filter:drop-shadow(2px 2px 0 rgba(0,0,0,.4));z-index:5}
 .handHint,.handErr{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.9);border-radius:999px;padding:4px 14px;font-weight:800;white-space:nowrap}
 .fruitTag{z-index:4}
+
+.candRow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+.candBtn{background:repeating-conic-gradient(#e0e0e0 0% 25%, #fff 0% 50%) 0 0/24px 24px;border:3px solid #263238;border-radius:14px;padding:8px;cursor:pointer}
+.candBtn img{max-width:110px;max-height:110px;display:block}
+.tapPhoto{max-width:260px;border:3px dashed #fb8c00;border-radius:14px;cursor:crosshair}
+.stuffyStage{background:repeating-conic-gradient(#f5f5f5 0% 25%, #fff 0% 50%) 0 0/28px 28px;border-radius:18px}
