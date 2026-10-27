@@ -27,3 +27,14 @@ vercel --prod
 ```
 
 The `api/sam.js` and `api/story.js` functions run as Vercel serverless functions; the key never reaches the browser.
+
+## Deploy (Cloudflare Pages, live)
+
+Live: https://toybox-math.pages.dev/
+
+```bash
+npm run deploy:cf   # build + wrangler pages deploy
+npx wrangler pages secret put META_MODEL_API_KEY --project-name toybox-math
+```
+
+`functions/api/sam.js` and `functions/api/story.js` are Pages Functions sharing `lib/meta.mjs` with the Vercel adapters in `api/`.
