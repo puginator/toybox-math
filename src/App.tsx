@@ -3,6 +3,17 @@ import { IconBalance, IconBuild, IconCount, IconHunt, IconJar, IconLamp, IconPat
 
 type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'estimate' | 'pattern' | 'hunt' | 'spotlight' | 'catch' | 'sortsize' | 'fingers' | 'mischief' | 'doors' | 'home_tree' | 'celebrate'
 type Stuffy = { name: string; img: string | null; hat: boolean; cape?: boolean; glasses?: boolean }
+export type LevelId = 'sprout' | 'explorer' | 'ranger'
+export const LEVELS: Record<LevelId, { label: string; sub: string; icon: string; addA: [number, number]; addB: [number, number]; useSub: boolean; buildGoal: number; show: [number, number]; fingers: [number, number]; patternLen: number; pileMax: number; jar: [number, number]; guesses: number[] }> = {
+  sprout: { label: 'Sprout', sub: 'PreK – Kindergarten', icon: '🌱', addA: [1, 5], addB: [1, 4], useSub: false, buildGoal: 5, show: [2, 5], fingers: [1, 5], patternLen: 4, pileMax: 6, jar: [3, 7], guesses: [2, 3, 4, 5, 6, 8] },
+  explorer: { label: 'Explorer', sub: '1st Grade', icon: '🌿', addA: [3, 8], addB: [2, 7], useSub: false, buildGoal: 10, show: [3, 8], fingers: [2, 8], patternLen: 5, pileMax: 9, jar: [4, 12], guesses: [2, 4, 6, 8, 10, 12] },
+  ranger: { label: 'Ranger', sub: '2nd – 3rd Grade', icon: '🌳', addA: [12, 30], addB: [6, 19], useSub: true, buildGoal: 20, show: [5, 12], fingers: [5, 10], patternLen: 6, pileMax: 15, jar: [8, 20], guesses: [5, 10, 12, 15, 18, 20] },
+}
+export const mkProblem = (lv: (typeof LEVELS)[LevelId]) => {
+  const rnd = ([a, b]: [number, number]) => a + Math.floor(Math.random() * (b - a + 1))
+  if (lv.useSub && Math.random() < 0.45) { const a = rnd([18, 45]); const b = rnd([5, a - 3]); return { a, b, op: '−' as const, answer: a - b } }
+  const a = rnd(lv.addA), b = rnd(lv.addB); return { a, b, op: '+' as const, answer: a + b }
+}
 const STOP_ICONS: Record<string, () => JSX.Element> = { ratio: IconCount, ninja: IconSlice, showme: IconShow, build: IconBuild, balance: IconBalance, estimate: IconJar, pattern: IconPattern, hunt: IconHunt, spotlight: IconSpot, catch: IconCatch, sortsize: IconSort, fingers: IconFingers, mischief: IconMischief, doors: IconDoor, home_tree: IconLamp }
 const STOPS = [
   { id: 'ratio', label: 'Dresser Drawer', sub: 'Counting blocks', prize: '' },
@@ -38,6 +49,9 @@ export default function App() {
   const [stars, setStars] = useState(() => Number(localStorage.getItem('toybox-stars') || 0))
   const [samStatus, setSamStatus] = useState('Demo mode: SAM proxy not configured yet — fallbacks keep every game playable.')
   const [candidates, setCandidates] = useState<{ img: string; area: number }[]>([])
+  const [levelId, setLevelId] = useState<LevelId>(() => (localStorage.getItem('toybox-level') as LevelId) || 'explorer')
+  useEffect(() => { localStorage.setItem('toybox-level', levelId) }, [levelId])
+  const lv = LEVELS[levelId] || LEVELS.explorer
   const [friend, setFriend] = useState<{ name: string; img: string | null }>(() => { try { return JSON.parse(localStorage.getItem('toybox-friend') || 'null') || { name: 'Peanut', img: null } } catch { return { name: 'Peanut', img: null } } })
   useEffect(() => { try { localStorage.setItem('toybox-friend', JSON.stringify(friend)) } catch {} }, [friend])
   const onFriendUpload = async (f: File) => {
@@ -140,6 +154,8 @@ export default function App() {
           </div>
           <label className="btn fileBtn">Upload a stuffy photo<input type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])} /></label>
           <label className="nameRow">Name <input value={stuffy.name} onChange={e => setStuffy(s => ({ ...s, name: e.target.value }))} maxLength={16} /></label>
+          <p className="levelAsk">What grade are you in?</p>
+          <div className="levelRow">{(Object.keys(LEVELS) as LevelId[]).map(id => <button key={id} className={`levelCard ${levelId === id ? 'levelOn' : ''}`} onClick={() => { setLevelId(id); pop(500); speak(`${LEVELS[id].label}! ${LEVELS[id].sub}. Great choice!`) }}><span>{LEVELS[id].icon}</span><strong>{LEVELS[id].label}</strong><small>{LEVELS[id].sub}</small></button>)}</div>
           <button className="btn big" onClick={() => { speak(FALLBACK_STORY(name)); setScreen('trail') }}>Start the adventure ▶</button>
           <button className="btn ghost" onClick={() => speak(`Hello! I am ${name}. Let's play math games together!`)}>🔊 Hear {name} talk</button>
           <PortraitPuzzle name={name} img={stuffy.img} done={done} />
@@ -175,18 +191,18 @@ export default function App() {
         </section>
       )}
 
-      {screen === 'ratio' && <Ratio name={name} img={stuffy.img} onWin={() => win('ratio')} onBack={() => setScreen('trail')} />}
-      {screen === 'ninja' && <Ninja name={name} img={stuffy.img} onWin={() => win('ninja')} onBack={() => setScreen('trail')} />}
-      {screen === 'showme' && <ShowMe name={name} img={stuffy.img} onWin={() => win('showme')} onBack={() => setScreen('trail')} />}
-      {screen === 'build' && <BuildNumber name={name} img={stuffy.img} onWin={() => win('build')} onBack={() => setScreen('trail')} />}
-      {screen === 'balance' && <Balance name={name} img={stuffy.img} onWin={() => win('balance')} onBack={() => setScreen('trail')} />}
-      {screen === 'estimate' && <Estimate name={name} img={stuffy.img} onWin={() => win('estimate')} onBack={() => setScreen('trail')} />}
-      {screen === 'pattern' && <PatternCopy name={name} img={stuffy.img} onWin={() => win('pattern')} onBack={() => setScreen('trail')} />}
+      {screen === 'ratio' && <Ratio name={name} lv={lv} img={stuffy.img} onWin={() => win('ratio')} onBack={() => setScreen('trail')} />}
+      {screen === 'ninja' && <Ninja name={name} lv={lv} img={stuffy.img} onWin={() => win('ninja')} onBack={() => setScreen('trail')} />}
+      {screen === 'showme' && <ShowMe name={name} lv={lv} img={stuffy.img} onWin={() => win('showme')} onBack={() => setScreen('trail')} />}
+      {screen === 'build' && <BuildNumber name={name} lv={lv} img={stuffy.img} onWin={() => win('build')} onBack={() => setScreen('trail')} />}
+      {screen === 'balance' && <Balance name={name} lv={lv} img={stuffy.img} onWin={() => win('balance')} onBack={() => setScreen('trail')} />}
+      {screen === 'estimate' && <Estimate name={name} lv={lv} img={stuffy.img} onWin={() => win('estimate')} onBack={() => setScreen('trail')} />}
+      {screen === 'pattern' && <PatternCopy name={name} lv={lv} img={stuffy.img} onWin={() => win('pattern')} onBack={() => setScreen('trail')} />}
       {screen === 'hunt' && <Hunt name={name} img={stuffy.img} onWin={() => win('hunt')} onBack={() => setScreen('trail')} />}
       {screen === 'spotlight' && <Spotlight name={name} img={stuffy.img} onWin={() => win('spotlight')} onBack={() => setScreen('trail')} />}
-      {screen === 'catch' && <CatchGame name={name} img={stuffy.img} onWin={() => win('catch')} onBack={() => setScreen('trail')} />}
+      {screen === 'catch' && <CatchGame name={name} lv={lv} img={stuffy.img} onWin={() => win('catch')} onBack={() => setScreen('trail')} />}
       {screen === 'sortsize' && <SortSize name={name} img={stuffy.img} onWin={() => win('sortsize')} onBack={() => setScreen('trail')} />}
-      {screen === 'fingers' && <Fingers name={name} img={stuffy.img} onWin={() => win('fingers')} onBack={() => setScreen('trail')} />}
+      {screen === 'fingers' && <Fingers name={name} lv={lv} img={stuffy.img} onWin={() => win('fingers')} onBack={() => setScreen('trail')} />}
       {screen === 'mischief' && <Mischief name={name} img={stuffy.img} onWin={() => win('mischief')} onBack={() => setScreen('trail')} />}
       {screen === 'doors' && <StoryDoors name={name} img={stuffy.img} onWin={() => win('doors')} onBack={() => setScreen('trail')} />}
       {screen === 'home_tree' && <HomeTree name={friend.img ? `${name} and ${friend.name}` : name} img={stuffy.img} doneCount={done.length} total={STOPS.length} onWin={() => win('home_tree')} onBack={() => setScreen('trail')} />}
@@ -230,17 +246,17 @@ function CameraSnap({ onSnap }: { onSnap: (d: string) => void }) {
   return <div className="camera">{live ? <><video ref={video} autoPlay playsInline muted className="camVideo" /><button className="btn big" onClick={snap}>📸 Snap! Let SAM count</button><button className="btn ghost" onClick={stop}>Stop camera</button></> : <><button className="btn" onClick={start}>📷 Turn on the camera</button> <label className="btn ghost fileBtn">🖼️ Upload a photo<input type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && upload(e.target.files[0])} /></label></>}{err && <p className="note">{err}</p>}<p className="note">Camera pictures are only used for counting and are never saved.</p></div>
 }
 
-function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+function Ratio({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
   const totalRounds = 3
   const [round, setRound] = useState(1); const [msg, setMsg] = useState(`Put some red things and blue things on the table, then snap a photo!`)
   const [photo, setPhoto] = useState<string | null>(null); const [busy, setBusy] = useState(false)
   const [counts, setCounts] = useState<{ red: number; blue: number } | null>(null)
   const [vision, setVision] = useState<{ b: any; color: string }[]>([])
   const [tapped, setTapped] = useState<Set<string>>(new Set())
-  const [blocksRound, setBlocksRound] = useState(() => { const red = 2 + Math.floor(Math.random() * 4); let blue = 1 + Math.floor(Math.random() * 5); if (blue === red) blue += 1; return { red, blue } })
+  const [blocksRound, setBlocksRound] = useState(() => { const red = 2 + Math.floor(Math.random() * Math.max(2, lv.pileMax - 2)); let blue = 1 + Math.floor(Math.random() * lv.pileMax); if (blue === red) blue += 1; return { red, blue } })
   const blocks = useMemo(() => [...Array(blocksRound.red).fill('red'), ...Array(blocksRound.blue).fill('blue')].map((c, i) => ({ c, id: `${c}-${i}` })), [blocksRound])
   useEffect(() => { speak(msg) }, [round])
-  const next = () => { if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setCounts(null); setVision([]); setTapped(new Set()); const red = 2 + Math.floor(Math.random() * 4); let blue = 1 + Math.floor(Math.random() * 5); if (blue === red) blue += 1; setBlocksRound({ red, blue }); setMsg(`Round ${round + 1}! Show me red and blue things again — SAM will count them.`) } }
+  const next = () => { if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setCounts(null); setVision([]); setTapped(new Set()); const red = 2 + Math.floor(Math.random() * Math.max(2, lv.pileMax - 2)); let blue = 1 + Math.floor(Math.random() * lv.pileMax); if (blue === red) blue += 1; setBlocksRound({ red, blue }); setMsg(`Round ${round + 1}! Show me red and blue things again — SAM will count them.`) } }
   const onSnap = async (d: string) => {
     setPhoto(d); setBusy(true); setMsg('SAM is counting your red and blue things...')
     try {
@@ -272,18 +288,18 @@ function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null;
     </section>)
 }
 
-function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+function Ninja({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
   const totalRounds = 5
   const [round, setRound] = useState(1)
-  const [problem, setProblem] = useState(() => ({ a: 3 + Math.floor(Math.random() * 5), b: 2 + Math.floor(Math.random() * 5) }))
+  const [problem, setProblem] = useState(() => mkProblem(lv))
   const [msg, setMsg] = useState('Put toys or blocks on the table and snap a photo. SAM will turn them into number fruit!')
   const [photo, setPhoto] = useState<string | null>(null); const [busy, setBusy] = useState(false)
   const [labels, setLabels] = useState<{ n: number; x: number; y: number; w: number; h: number }[]>([])
   const [sliced, setSliced] = useState<Set<number>>(new Set()); const dragging = useRef(false)
-  const answer = problem.a + problem.b
-  useEffect(() => { speak(`What is ${problem.a} plus ${problem.b}? Slice the fruit with that number!`) }, [problem])
-  const newProblem = () => setProblem({ a: 3 + Math.floor(Math.random() * 6), b: 2 + Math.floor(Math.random() * 6) })
-  const next = () => { if (round >= totalRounds) onWin(); else { const np = { a: 3 + Math.floor(Math.random() * 6), b: 2 + Math.floor(Math.random() * 6) }; setRound(r => r + 1); setSliced(new Set()); setProblem(np); if (photo === 'sprite' || photo === 'hand') { const ans = np.a + np.b; const opts = [...new Set([ans, ans + 2, ans - 1, ans + 4])]; setLabels(opts.map((n, i) => ({ n, x: 6 + i * 24, y: 30 + (i % 2) * 28, w: 20, h: 26 }))); setMsg(`Round ${round + 1}! Slice the answer!`) } else { setPhoto(null); setLabels([]); setMsg(`Round ${round + 1}! New table, new problem. Snap your toys!`) } } }
+  const answer = problem.answer
+  useEffect(() => { speak(`What is ${problem.a} ${problem.op === '+' ? 'plus' : 'minus'} ${problem.b}? Slice the fruit with that number!`) }, [problem])
+  const newProblem = () => setProblem(mkProblem(lv))
+  const next = () => { if (round >= totalRounds) onWin(); else { const np = mkProblem(lv); setRound(r => r + 1); setSliced(new Set()); setProblem(np); if (photo === 'sprite' || photo === 'hand') { const ans = np.answer; const opts = [...new Set([ans, ans + 2, ans - 1, ans + 4])]; setLabels(opts.map((n, i) => ({ n, x: 6 + i * 24, y: 30 + (i % 2) * 28, w: 20, h: 26 }))); setMsg(`Round ${round + 1}! Slice the answer!`) } else { setPhoto(null); setLabels([]); setMsg(`Round ${round + 1}! New table, new problem. Snap your toys!`) } } }
   const spriteLabels = () => { const opts = [...new Set([answer, answer + 2, answer - 1, answer + 4])]; return opts.map((n, i) => ({ n, x: 6 + i * 24, y: 30 + (i % 2) * 28, w: 20, h: 26 })) }
   const onSnap = async (d: string) => {
     setPhoto(d); setBusy(true); setMsg('SAM is finding your toys...')
@@ -307,7 +323,7 @@ function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null;
   }
   return (<section className="panel"><h1>Nightstand Slice</h1><GameTop round={round} total={totalRounds} onBack={onBack} />
     <Companion name={name} img={img} msg={msg} />
-    <p className="ask">{problem.a} + {problem.b} = ?</p>
+    <p className="ask">{problem.a} {problem.op} {problem.b} = ?</p>
     {!photo && <><CameraSnap onSnap={onSnap} /><p className="note">No toys handy?</p><button className="btn" onClick={() => { setPhoto('sprite'); setLabels(spriteLabels()) }}>🍎 Play with sprite fruit</button>
       <button className="btn" onClick={() => { setPhoto('hand'); setLabels(spriteLabels()); setMsg('Wave your hand in front of the camera — your fingertip is the blade! Slice the answer!') }}>✋ Hand blade (camera)</button></>}
     {busy && <p className="cheer">SAM is looking…</p>}
@@ -326,12 +342,12 @@ function GameTop({ round, total, onBack }: { round?: number; total?: number; onB
   return <div className="gameTop"><button className="xBtn" onClick={onBack} aria-label="Back to map">✕</button>{total ? <Rounds round={round || 1} total={total} /> : <span />}</div>
 }
 
-function ShowMe({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
-  const total = 3; const [round, setRound] = useState(1); const [target, setTarget] = useState(() => 3 + Math.floor(Math.random() * 6))
+function ShowMe({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
+  const total = 3; const [round, setRound] = useState(1); const [target, setTarget] = useState(() => lv.show[0] + Math.floor(Math.random() * (lv.show[1] - lv.show[0] + 1)))
   const [picked, setPicked] = useState<Set<number>>(new Set()); const [msg, setMsg] = useState('')
   const [photoCount, setPhotoCount] = useState<number | null>(null)
   useEffect(() => { setMsg(`Show me ${target}! Tap blocks — or snap toys on the table and SAM will count them.`); speak(`Show me ${target}!`) }, [target])
-  const next = () => { if (round >= total) onWin(); else { setRound(r => r + 1); setTarget(3 + Math.floor(Math.random() * 6)); setPicked(new Set()); setPhotoCount(null) } }
+  const next = () => { if (round >= total) onWin(); else { setRound(r => r + 1); setTarget(lv.show[0] + Math.floor(Math.random() * (lv.show[1] - lv.show[0] + 1))); setPicked(new Set()); setPhotoCount(null) } }
   const check = (n: number) => { if (n === target) { pop(740); speak(`Yes! That is ${target}!`); setTimeout(next, 800) } else { pop(210); setMsg(n < target ? `That is ${n}. ${name} needs a few more!` : `That is ${n}. A few too many — tap one off!`); speak(n < target ? 'A few more!' : 'A few too many!') } }
   const onSnap = async (d: string) => { setMsg('SAM is counting your toys...'); try { let j = await sam('toy', d); if (!j.count) j = await sam('block', d); setPhotoCount(j.count ?? 0); if ((j.count ?? 0) > 0) check(j.count) } catch { setMsg('SAM is resting — tap blocks still works!') } }
   return (<section className="panel"><h1>Bookshelf Heights</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
@@ -343,9 +359,9 @@ function ShowMe({ name, img, onWin, onBack }: { name: string; img: string | null
     </section>)
 }
 
-function BuildNumber({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
-  const total = 3; const goal = 10; const [round, setRound] = useState(1); const [msg, setMsg] = useState(`Pick fruit numbers that add up to ${goal}!`)
-  const deal = () => { const a = 2 + Math.floor(Math.random() * 6); const pair = [a, goal - a]; const extra = [2, 3, 4, 5, 6, 7, 8].filter(n => !pair.includes(n)).sort(() => 0.5 - Math.random()).slice(0, 4); return [...pair, ...extra].sort(() => 0.5 - Math.random()) }
+function BuildNumber({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
+  const total = 3; const goal = lv.buildGoal; const [round, setRound] = useState(1); const [msg, setMsg] = useState(`Pick fruit numbers that add up to ${goal}!`)
+  const deal = () => { const a = 1 + Math.floor(Math.random() * (goal - 1)); const pair = [a, goal - a]; const extra = Array.from({ length: goal }, (_, i) => i + 1).filter(n => !pair.includes(n)).sort(() => 0.5 - Math.random()).slice(0, 4); return [...pair, ...extra].sort(() => 0.5 - Math.random()) }
   const [opts, setOpts] = useState(deal); const [picked, setPicked] = useState<Set<number>>(new Set())
   const sum = [...picked].reduce((a, i) => a + opts[i], 0)
   useEffect(() => { speak(`Build the number ${goal}! Pick fruit that add up to ${goal}.`) }, [round])
@@ -357,11 +373,11 @@ function BuildNumber({ name, img, onWin, onBack }: { name: string; img: string |
     <button className="btn big" onClick={check}>Check!</button><br /></section>)
 }
 
-function Balance({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+function Balance({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
   const total = 3; const [round, setRound] = useState(1); const [msg, setMsg] = useState('Which side has more blocks? Tap that side!')
-  const [sides, setSides] = useState(() => { const l = 1 + Math.floor(Math.random() * 8); let r = 1 + Math.floor(Math.random() * 8); if (r === l) r += 1; return { l, r } })
+  const [sides, setSides] = useState(() => { const l = 1 + Math.floor(Math.random() * lv.pileMax); let r = 1 + Math.floor(Math.random() * lv.pileMax); if (r === l) r += 1; return { l, r } })
   useEffect(() => { speak('Which side has more blocks?') }, [round])
-  const pick = (side: 'l' | 'r') => { const truth = sides.l > sides.r ? 'l' : 'r'; if (side === truth) { pop(740); speak('Yes! That side has more!'); if (round >= total) setTimeout(onWin, 800); else { setRound(r2 => r2 + 1); const l = 1 + Math.floor(Math.random() * 8); let r = 1 + Math.floor(Math.random() * 8); if (r === l) r += 1; setSides({ l, r }); setMsg(`Round ${round + 1} — which side has more?`) } } else { pop(210); setMsg(`Good looking! Count each side slowly, one by one.`); speak('Good looking! Count each side slowly.') } }
+  const pick = (side: 'l' | 'r') => { const truth = sides.l > sides.r ? 'l' : 'r'; if (side === truth) { pop(740); speak('Yes! That side has more!'); if (round >= total) setTimeout(onWin, 800); else { setRound(r2 => r2 + 1); const l = 1 + Math.floor(Math.random() * lv.pileMax); let r = 1 + Math.floor(Math.random() * lv.pileMax); if (r === l) r += 1; setSides({ l, r }); setMsg(`Round ${round + 1} — which side has more?`) } } else { pop(210); setMsg(`Good looking! Count each side slowly, one by one.`); speak('Good looking! Count each side slowly.') } }
   const pile = (n: number) => <div className="pile">{Array.from({ length: n }, (_, i) => <span key={i} className="miniBlock" />)}</div>
   return (<section className="panel"><h1>Lamp Balance</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     <div className="balanceRow"><button className="side" onClick={() => pick('l')}>{pile(sides.l)}<span>{sides.l}</span></button><div className="vs">⚖️</div><button className="side" onClick={() => pick('r')}>{pile(sides.r)}<span>{sides.r}</span></button></div>
@@ -390,27 +406,27 @@ function Confetti() {
   return <canvas ref={ref} className="confetti" aria-hidden="true" />
 }
 
-function Estimate({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+function Estimate({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
   const total = 3; const [round, setRound] = useState(1); const [guess, setGuess] = useState<number | null>(null)
   const [real, setReal] = useState<number | null>(null); const [busy, setBusy] = useState(false)
-  const [pile] = useState(() => 4 + Math.floor(Math.random() * 8)); const [usePile, setUsePile] = useState(true)
+  const [pile, setPile] = useState(() => lv.jar[0] + Math.floor(Math.random() * (lv.jar[1] - lv.jar[0] + 1))); const [usePile, setUsePile] = useState(true)
   const [msg, setMsg] = useState('Estimation is a superpower! Guess first — how many are in the jar? Then we count for real.')
   useEffect(() => { speak('How many do you think are in the jar? Make a guess!') }, [round])
-  const reveal = (n: number) => { setReal(n); const d = Math.abs(n - (guess ?? 0)); setTimeout(() => { if (round >= total) onWin(); else { setRound(r => r + 1); setGuess(null); setReal(null); setUsePile(true); setMsg(`Round ${round + 1}! New jar — guess first!`) } }, 2600); setMsg(d === 0 ? `WOW! Exactly ${n}! You are an estimation star!` : d <= 2 ? `So close! There are ${n}. Great estimating!` : `There are ${n}! Estimating takes practice — ${name} loves your guess!`); speak(`There are ${n}!`) }
+  const reveal = (n: number) => { setReal(n); const d = Math.abs(n - (guess ?? 0)); setTimeout(() => { if (round >= total) onWin(); else { setRound(r => r + 1); setGuess(null); setReal(null); setUsePile(true); setPile(lv.jar[0] + Math.floor(Math.random() * (lv.jar[1] - lv.jar[0] + 1))); setMsg(`Round ${round + 1}! New jar — guess first!`) } }, 2600); setMsg(d === 0 ? `WOW! Exactly ${n}! You are an estimation star!` : d <= 2 ? `So close! There are ${n}. Great estimating!` : `There are ${n}! Estimating takes practice — ${name} loves your guess!`); speak(`There are ${n}!`) }
   const onSnap = async (d: string) => { if (guess === null) { setMsg('Guess first! Tap a number, then snap.'); return } setBusy(true); setMsg('SAM is counting the real jar...'); try { let j = await sam('toy', d); for (const w of ['block', 'ball', 'cup', 'banana']) { if (j.count) break; j = await sam(w, d) } if (j.count) { setUsePile(false); reveal(j.count) } else setMsg('SAM could not count that photo. Try spreading the toys out — or use the jar below!') } catch { setMsg('SAM is resting — count the jar below together!') } setBusy(false) }
   return (<section className="panel"><h1>Toy Jar Corner</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     {usePile && <div className="jar">{Array.from({ length: pile }, (_, i) => <span key={i} className="jarBall" style={{ background: ['#e53935', '#1e88e5', '#43a047', '#fb8c00'][i % 4] }} />)}</div>}
     {real !== null ? <p className="ask">There are {real}!</p> : <>
       <p className="note">Your guess: <strong>{guess ?? '?'}</strong></p>
-      <div className="row">{[2, 4, 6, 8, 10, 12].map(n => <button key={n} className={`btn ${guess === n ? '' : 'ghost'}`} onClick={() => { setGuess(n); pop(440 + n * 30) }}>{n}</button>)}</div>
+      <div className="row">{lv.guesses.map(n => <button key={n} className={`btn ${guess === n ? '' : 'ghost'}`} onClick={() => { setGuess(n); pop(440 + n * 30) }}>{n}</button>)}</div>
       {usePile && guess !== null && <button className="btn big" onClick={() => reveal(pile)}>Count them for real!</button>}
       <p className="note">With real toys: guess, then snap — SAM counts your jar.</p><CameraSnap onSnap={onSnap} />{busy && <p className="cheer">SAM is counting…</p>}</>}
     </section>)
 }
 
-function PatternCopy({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+function PatternCopy({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
   const total = 3; const [round, setRound] = useState(1); const [msg, setMsg] = useState('Watch the pattern, then copy it!')
-  const deal = () => { const cols = ['red', 'blue', 'green']; const base = [cols[Math.floor(Math.random() * 3)], cols[Math.floor(Math.random() * 3)]]; if (base[0] === base[1]) base[1] = cols.find(c => c !== base[0])!; return [base[0], base[1], base[0], base[1], base[0]] }
+  const deal = () => { const cols = ['red', 'blue', 'green']; const base = [cols[Math.floor(Math.random() * 3)], cols[Math.floor(Math.random() * 3)]]; if (base[0] === base[1]) base[1] = cols.find(c => c !== base[0])!; return Array.from({ length: lv.patternLen }, (_, i) => base[i % 2]) }
   const [pattern, setPattern] = useState(deal); const [mine, setMine] = useState<string[]>([])
   useEffect(() => { speak('Copy the pattern!') }, [round])
   const tap = (c: string) => { const next = [...mine, c]; setMine(next); pop(c === 'red' ? 500 : c === 'blue' ? 400 : 600); if (next.length === pattern.length) { if (next.every((v, i) => v === pattern[i])) { speak('You copied the pattern!'); setTimeout(() => { if (round >= total) onWin(); else { setRound(r => r + 1); setPattern(deal()); setMine([]); setMsg(`Round ${round + 1} — new pattern!`) } }, 900) } else { setMsg(`So close! Watch the colors again and start over. ${name} believes in you!`); speak('So close! Try again.'); setTimeout(() => setMine([]), 800) } } }
@@ -511,22 +527,22 @@ function Spotlight({ name, img, onWin, onBack }: { name: string; img: string | n
     </section>)
 }
 
-function CatchGame({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
-  const need = 3; const [caught, setCaught] = useState(0); const [problem, setProblem] = useState(() => ({ a: 2 + Math.floor(Math.random() * 6), b: 2 + Math.floor(Math.random() * 5) }))
-  const answer = problem.a + problem.b
+function CatchGame({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
+  const need = 3; const [caught, setCaught] = useState(0); const [problem, setProblem] = useState(() => mkProblem(lv))
+  const answer = problem.answer
   const [fruits, setFruits] = useState<{ id: number; n: number; x: number; y: number; v: number }[]>([]); const [basketX, setBasketX] = useState(50)
   const idRef = useRef(0); const caughtRef = useRef(0); const ansRef = useRef(answer); ansRef.current = answer
   const [msg, setMsg] = useState('Move the basket with your finger or mouse. Catch the fruit with the answer!')
   useEffect(() => { speak(`Catch the fruit that says ${answer}!`) }, [problem])
   useEffect(() => {
     const spawn = setInterval(() => { setFruits(f => f.length > 5 ? f : [...f, { id: ++idRef.current, n: Math.random() < 0.45 ? ansRef.current : Math.max(1, ansRef.current + [-3, -1, 2, 4, -2][Math.floor(Math.random() * 5)]), x: 6 + Math.random() * 86, y: -8, v: 0.55 + Math.random() * 0.5 }]) }, 1500)
-    const tick = setInterval(() => { setFruits(f => { const next: typeof f = []; for (const fr of f) { const y = fr.y + fr.v; if (y > 88) { if (Math.abs(fr.x - basketXRef.current) < 13) { if (fr.n === ansRef.current) { caughtRef.current++; pop(760); setCaught(caughtRef.current); if (caughtRef.current >= need) { setTimeout(onWin, 600) } else { setMsg(`Caught it! ${need - caughtRef.current} more!`); setProblem({ a: 2 + Math.floor(Math.random() * 6), b: 2 + Math.floor(Math.random() * 5) }) } } else { pop(220); setMsg(`That one says ${fr.n} — it bounces away! Find ${ansRef.current}!`) } } } else if (y < 108) next.push({ ...fr, y }) } return next }) }, 50)
+    const tick = setInterval(() => { setFruits(f => { const next: typeof f = []; for (const fr of f) { const y = fr.y + fr.v; if (y > 88) { if (Math.abs(fr.x - basketXRef.current) < 13) { if (fr.n === ansRef.current) { caughtRef.current++; pop(760); setCaught(caughtRef.current); if (caughtRef.current >= need) { setTimeout(onWin, 600) } else { setMsg(`Caught it! ${need - caughtRef.current} more!`); setProblem(mkProblem(lv)) } } else { pop(220); setMsg(`That one says ${fr.n} — it bounces away! Find ${ansRef.current}!`) } } } else if (y < 108) next.push({ ...fr, y }) } return next }) }, 50)
     return () => { clearInterval(spawn); clearInterval(tick) }
   }, [])
   const basketXRef = useRef(50); basketXRef.current = basketX
   const move = (e: React.PointerEvent<HTMLDivElement>) => { const r = e.currentTarget.getBoundingClientRect(); setBasketX(Math.min(92, Math.max(8, (e.clientX - r.left) / r.width * 100))) }
   return (<section className="panel"><h1>Catch Grove</h1><GameTop round={Math.min(caught + 1, need)} total={need} onBack={onBack} /><p className="caughtLine">Caught {caught} of {need} 🧺</p><Companion name={name} img={img} msg={msg} />
-    <p className="ask">{problem.a} + {problem.b} = ?</p>
+    <p className="ask">{problem.a} {problem.op} {problem.b} = ?</p>
     <div className="catchStage" onPointerMove={move} onPointerDown={move}>
       {fruits.map(f => <div key={f.id} className="fallFruit" style={{ left: `${f.x}%`, top: `${f.y}%` }}>🍎<span>{f.n}</span></div>)}
       <div className="basket" style={{ left: `${basketX}%` }}>🧺</div>
@@ -562,8 +578,8 @@ function SortSize({ name, img, onWin, onBack }: { name: string; img: string | nu
     </section>)
 }
 
-function Fingers({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
-  const total = 3; const [round, setRound] = useState(1); const [target, setTarget] = useState(() => 2 + Math.floor(Math.random() * 6))
+function Fingers({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
+  const total = 3; const [round, setRound] = useState(1); const [target, setTarget] = useState(() => lv.fingers[0] + Math.floor(Math.random() * (lv.fingers[1] - lv.fingers[0] + 1)))
   const [count, setCount] = useState(0); const [err, setErr] = useState(''); const hold = useRef(0); const [msg, setMsg] = useState('')
   useEffect(() => { setMsg(`Show me ${target} fingers! Hold them up to the camera.`); speak(`Show me ${target} fingers!`) }, [target])
   const video = useRef<HTMLVideoElement>(null)
@@ -579,7 +595,7 @@ function Fingers({ name, img, onWin, onBack }: { name: string; img: string | nul
     } catch { if (!dead) setErr('Camera fingers could not start. Tap the answer below instead!') } })()
     return () => { dead = true; cancelAnimationFrame(raf); stream?.getTracks().forEach(tr => tr.stop()); try { lm?.close() } catch {} }
   }, [])
-  useEffect(() => { if (count === target && target > 0) { hold.current++; if (hold.current === 45) { pop(760); speak(`Yes! ${target} fingers!`); if (round >= total) setTimeout(onWin, 700); else { setRound(r => r + 1); setTarget(2 + Math.floor(Math.random() * 8)) } } } else hold.current = 0 }, [count])
+  useEffect(() => { if (count === target && target > 0) { hold.current++; if (hold.current === 45) { pop(760); speak(`Yes! ${target} fingers!`); if (round >= total) setTimeout(onWin, 700); else { setRound(r => r + 1); setTarget(lv.fingers[0] + Math.floor(Math.random() * (lv.fingers[1] - lv.fingers[0] + 1))) } } } else hold.current = 0 }, [count])
   return (<section className="panel"><h1>Finger Meadow</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     <p className="ask">Show me {target}!</p><video ref={video} autoPlay playsInline muted className="camVideo fingerCam" />
     <p className="fingerCount">{count} 🖐️</p>{err && <p className="note">{err}</p>}

@@ -120,3 +120,8 @@ input[type="text"],input:not([type]){border:2.5px solid #d8cdb2!important}
 .nameRow input{border:2.5px solid #d8cdb2;border-radius:14px}
 .stars{border:2.5px solid #6d4c2f;box-shadow:0 3px 0 rgba(0,0,0,.3)}
 @media(max-width:620px){.panel{padding:16px 14px 20px} h1{font-size:25px} .ask{font-size:27px}}
+.levelAsk{font-family:"Baloo 2",cursive;font-size:21px;font-weight:800;margin:16px 0 8px}
+.levelRow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.levelCard{display:grid;justify-items:center;gap:1px;background:#fff;border:2.5px solid #d8cdb2;border-bottom:5px solid #ded2b8;border-radius:16px;padding:12px 16px;cursor:pointer;font-family:inherit;min-width:132px;color:var(--ink)}
+.levelCard span{font-size:26px}.levelCard strong{font-size:17px}.levelCard small{font-weight:700;color:#8a7a5c}
+.levelCard.levelOn{background:#e8f5e9;border-color:#58a700;border-bottom-color:#46a302}
