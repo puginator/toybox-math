@@ -184,7 +184,8 @@ function CameraSnap({ onSnap }: { onSnap: (d: string) => void }) {
   const stop = () => { stream.current?.getTracks().forEach(tr => tr.stop()); setLive(false) }
   useEffect(() => () => stop(), [])
   const snap = () => { const v = video.current; if (!v) return; const s = Math.min(1, 1024 / Math.max(v.videoWidth, v.videoHeight)); const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * s); c.height = Math.round(v.videoHeight * s); c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height); stop(); onSnap(c.toDataURL('image/jpeg', 0.85)) }
-  return <div className="camera">{live ? <><video ref={video} autoPlay playsInline muted className="camVideo" /><button className="btn big" onClick={snap}>📸 Snap! Let SAM count</button><button className="btn ghost" onClick={stop}>Stop camera</button></> : <button className="btn" onClick={start}>📷 Turn on the camera</button>}{err && <p className="note">{err}</p>}<p className="note">Camera pictures are only used for counting and are never saved.</p></div>
+  const upload = async (f: File) => { const bmp = await createImageBitmap(f).catch(() => null); if (!bmp) return; const s = Math.min(1, 1024 / Math.max(bmp.width, bmp.height)); const c = document.createElement('canvas'); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s); c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height); onSnap(c.toDataURL('image/jpeg', 0.85)) }
+  return <div className="camera">{live ? <><video ref={video} autoPlay playsInline muted className="camVideo" /><button className="btn big" onClick={snap}>📸 Snap! Let SAM count</button><button className="btn ghost" onClick={stop}>Stop camera</button></> : <><button className="btn" onClick={start}>📷 Turn on the camera</button> <label className="btn ghost fileBtn">🖼️ Upload a photo<input type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && upload(e.target.files[0])} /></label></>}{err && <p className="note">{err}</p>}<p className="note">Camera pictures are only used for counting and are never saved.</p></div>
 }
 
 function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -412,7 +413,7 @@ function Hunt({ name, img, onWin, onBack }: { name: string; img: string | null; 
   const [msg, setMsg] = useState(`SAM hunts with words! Hide these where SAM can see them, then snap a photo: ${items.join(', ')}.`)
   useEffect(() => { speak(`Scavenger hunt! Can SAM find ${items.join(', ')}?`) }, [])
   const foundCount = items.filter(i => found[i]).length
-  useEffect(() => { if (foundCount === items.length && items.length) { speak('SAM found everything!'); setTimeout(onWin, 1000) } }, [foundCount])
+  useEffect(() => { if (foundCount === items.length && items.length) { speak('SAM found everything! Look at the outlines!'); setTimeout(onWin, 4500) } }, [foundCount])
   const onSnap = async (d: string) => {
     setPhoto(d); setBusy(true); setMsg('SAM is hunting, one word at a time...')
     const next: Record<string, any[]> = { ...found }; let newly = 0
