@@ -11,6 +11,7 @@
     "test:cutout": "node scripts/cutout-test.mjs"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.1.1",
     "@meta-sam/parser": "^0.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
