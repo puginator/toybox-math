@@ -43,15 +43,19 @@ export default function App() {
   const onFriendUpload = async (f: File) => {
     const bmp = await createImageBitmap(f).catch(() => null); if (!bmp) return
     const s = Math.min(1, 1024 / Math.max(bmp.width, bmp.height)); const c0 = document.createElement('canvas'); c0.width = Math.round(bmp.width * s); c0.height = Math.round(bmp.height * s); c0.getContext('2d')!.drawImage(bmp, 0, 0, c0.width, c0.height)
-    const dataUrl = c0.toDataURL('image/jpeg', 0.85); setFriend(fr => ({ ...fr, img: dataUrl })); speak(`A new friend for ${name}! SAM is cutting them out.`)
+    const dataUrl = c0.toDataURL('image/jpeg', 0.85); speak(`A new friend for ${name}! SAM is cutting them out.`)
     const j = await tryCutout(dataUrl, ['stuffed animal', 'plush toy', 'stuffed toy', 'teddy bear'])
-    if (j?.boxes?.length) { const img = new Image(); img.onload = () => { let bi = 0, best = -1; j.boxes.forEach((b: any, i: number) => { const a = (b.x2 - b.x1) * (b.y2 - b.y1); if (a > best) { best = a; bi = i } }); setFriend(fr => ({ ...fr, img: applyMask(img, j.boxes[bi], j.masks?.[bi]) })); speak(`${friend.name} is here! Now ${name} has a friend on the adventure!`) }; img.src = dataUrl }
+    if (j?.boxes?.length) { const img = new Image(); img.onload = () => { let bi = -1, best = -1; j.boxes.forEach((b: any, i: number) => { if (!j.masks?.[i]?.rasterB64) return; const a = (b.x2 - b.x1) * (b.y2 - b.y1); if (a > best) { best = a; bi = i } }); if (bi >= 0) { setFriend(fr => ({ ...fr, img: applyMask(img, j.boxes[bi], j.masks?.[bi]) })); speak(`${friend.name} is here! Now ${name} has a friend on the adventure!`) } }; img.src = dataUrl }
   }
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
   const name = stuffy.name || 'Biscuit'
 
   useEffect(() => { try { localStorage.setItem('toybox-stuffy', JSON.stringify(stuffy)) } catch {} }, [stuffy])
   useEffect(() => { localStorage.setItem('toybox-stars', String(stars)) }, [stars])
+  // Saved buddies from older versions can be raw photos or rectangular crops.
+  // A proper cut-out is a PNG with transparent corners - anything else gets cleared for a fresh cut-out.
+  const validated = useRef(false)
+  useEffect(() => { if (validated.current || !stuffy.img) return; validated.current = true; const im = new Image(); im.onload = () => { try { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d')!; x.drawImage(im, 0, 0); const corners = [[0, 0], [c.width - 1, 0], [0, c.height - 1], [c.width - 1, c.height - 1]].map(([cx, cy]) => x.getImageData(cx, cy, 1, 1).data[3]); if (corners.every(a => a > 250)) { setStuffy(s => ({ ...s, img: null })); setSamStatus('That saved picture was a whole photo, not a cut-out. Upload your stuffy again and SAM will cut it out properly!') } } catch {} }; im.src = stuffy.img }, [])
   useEffect(() => { fetch('/api/sam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'ping' }) }).then(r => { if (r.ok) setSamStatus('SAM 3.1 connected through the Meta Model API proxy.'); else setSamStatus('Demo mode: SAM proxy not configured yet — fallbacks keep every game playable.') }).catch(() => {}) }, [])
 
   const [story, setStory] = useState(() => localStorage.getItem('toybox-story') || '')
@@ -92,14 +96,14 @@ export default function App() {
     const c0 = document.createElement('canvas'); c0.width = Math.round(bmp.width * scale); c0.height = Math.round(bmp.height * scale)
     c0.getContext('2d')!.drawImage(bmp, 0, 0, c0.width, c0.height)
     const dataUrl = c0.toDataURL('image/jpeg', 0.85)
-    setStuffy(s => ({ ...s, img: dataUrl })); setPendingPhoto(dataUrl)
-    speak('What a wonderful stuffy! SAM is cutting out your friend.'); setSamStatus('SAM 3.1 is cutting out your stuffy...')
+    setPendingPhoto(dataUrl)
+    speak('What a wonderful stuffy! SAM is cutting out your friend.'); setSamStatus('SAM 3.1 is cutting out your stuffy... (your buddy appears when the cut-out is ready)')
     const j = await tryCutout(dataUrl, ['stuffed animal', 'plush toy', 'stuffed toy', 'teddy bear'])
     if (!j) { setSamStatus('SAM could not spot a stuffy in that photo. Tap your stuffy in the photo below, or try a clearer photo with your stuffy in the middle!'); return }
     const img = new Image()
     img.onload = () => {
-      const cands = (j.boxes || []).map((b: any, i: number) => ({ img: applyMask(img, b, j.masks?.[i]), area: (b.x2 - b.x1) * (b.y2 - b.y1) })).sort((a: any, b: any) => b.area - a.area)
-      if (!cands.length) { setSamStatus('SAM could not spot a stuffy in that photo. Tap your stuffy below!'); return }
+      const cands = (j.boxes || []).map((b: any, i: number) => ({ img: applyMask(img, b, j.masks?.[i]), area: (b.x2 - b.x1) * (b.y2 - b.y1), masked: !!j.masks?.[i]?.rasterB64 })).filter((c: any) => c.masked).sort((a: any, b: any) => b.area - a.area)
+      if (!cands.length) { setSamStatus('SAM found shapes but no clean outline. Tap your stuffy in the photo below so SAM can try again!'); return }
       if (cands.length === 1) { setStuffy(s => ({ ...s, img: cands[0].img })); setSamStatus(`SAM 3.1 cut out your stuffy in ${j.ms}ms!`); speak('SAM cut out your stuffy! Look, no background!') }
       else { setCandidates(cands.slice(0, 4)); setSamStatus(`SAM found ${cands.length} things! Tap the one that is your stuffy.`) ; speak('Which one is your stuffy? Tap it!') }
     }; img.src = dataUrl
