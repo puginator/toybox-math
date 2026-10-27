@@ -21,9 +21,10 @@ const FALLBACK_STORY = (n: string) => `${n} is lost in the bedroom after lights-
 function speak(text: string) {
   try { const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; speechSynthesis.cancel(); speechSynthesis.speak(u) } catch {}
 }
-function jingle() { try { const ctx = new AudioContext();[523,659,784,1047].forEach((f,i)=>{ const o=ctx.createOscillator(); const g=ctx.createGain(); o.frequency.value=f; g.gain.setValueAtTime(0.12, ctx.currentTime+i*0.13); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+i*0.13+0.3); o.connect(g).connect(ctx.destination); o.start(ctx.currentTime+i*0.13); o.stop(ctx.currentTime+i*0.13+0.32) }) } catch {} }
+let AC: AudioContext | null = null; const audio = () => { if (!AC) AC = new AudioContext(); if (AC.state === 'suspended') AC.resume(); return AC }
+function jingle() { try { const ctx = audio();[523,659,784,1047].forEach((f,i)=>{ const o=ctx.createOscillator(); const g=ctx.createGain(); o.frequency.value=f; g.gain.setValueAtTime(0.12, ctx.currentTime+i*0.13); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+i*0.13+0.3); o.connect(g).connect(ctx.destination); o.start(ctx.currentTime+i*0.13); o.stop(ctx.currentTime+i*0.13+0.32) }) } catch {} }
 function pop(freq = 520) {
-  try { const ctx = new AudioContext(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.frequency.value = freq; g.gain.setValueAtTime(0.15, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18); o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.2) } catch {}
+  try { const ctx = audio(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.frequency.value = freq; g.gain.setValueAtTime(0.15, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18); o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.2) } catch {}
 }
 
 export default function App() {
@@ -35,12 +36,13 @@ export default function App() {
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
   const name = stuffy.name || 'Biscuit'
 
-  useEffect(() => { localStorage.setItem('toybox-stuffy', JSON.stringify(stuffy)) }, [stuffy])
+  useEffect(() => { try { localStorage.setItem('toybox-stuffy', JSON.stringify(stuffy)) } catch {} }, [stuffy])
   useEffect(() => { localStorage.setItem('toybox-stars', String(stars)) }, [stars])
   useEffect(() => { fetch('/api/sam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'ping' }) }).then(r => { if (r.ok) setSamStatus('SAM 3.1 connected through the Meta Model API proxy.'); else setSamStatus('Demo mode: SAM proxy not configured yet — fallbacks keep every game playable.') }).catch(() => {}) }, [])
 
   const [story, setStory] = useState(() => localStorage.getItem('toybox-story') || '')
-  useEffect(() => { if (screen !== 'trail' || story) return; fetch('/api/story', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }).then(r => r.json()).then(j => { if (j.story) { setStory(j.story); localStorage.setItem('toybox-story', j.story); speak(j.story) } }).catch(() => {}) }, [screen])
+  const storyName = useRef(name)
+  useEffect(() => { if (storyName.current !== name) { storyName.current = name; if (story) { setStory(''); localStorage.removeItem('toybox-story'); return } } if (screen !== 'trail' || story) return; fetch('/api/story', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }).then(r => r.json()).then(j => { if (j.story) { setStory(j.story); localStorage.setItem('toybox-story', j.story); speak(j.story) } }).catch(() => {}) }, [screen])
   const [done, setDone] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('toybox-done') || '[]') } catch { return [] } })
   useEffect(() => { localStorage.setItem('toybox-done', JSON.stringify(done)) }, [done])
   const win = (game: string) => { jingle(); setStars(s => s + 1); if (!done.includes(game)) setDone(d => [...d, game]); pop(760); speak(`You did it! ${name} is so proud of you!`); if (game === 'ninja') setStuffy(s => ({ ...s, hat: true })); if (game === 'build') setStuffy(s => ({ ...s, glasses: true })); if (game === 'home_tree') setStuffy(s => ({ ...s, cape: true })); setScreen('celebrate') }
@@ -217,16 +219,16 @@ function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null;
   const onSnap = async (d: string) => {
     setPhoto(d); setBusy(true); setMsg('SAM is counting your red and blue things...')
     try {
-      const [r, b] = [await sam('red object', d), await sam('blue object', d)]
+      const [r, b] = await Promise.all([sam('red object', d), sam('blue object', d)])
       if ((r.count || 0) + (b.count || 0) === 0) { setMsg('SAM could not see red or blue things. Spread them out, give them space, and snap again!'); setBusy(false); return }
-      setCounts({ red: r.count, blue: b.count }); setVision([...(r.boxes || []).map((x: any) => ({ b: x, color: '#e53935' })), ...(b.boxes || []).map((x: any) => ({ b: x, color: '#1e88e5' }))]); setMsg(`SAM counted ${r.count} red and ${b.count} blue! See SAM's outlines? Which color has more?`)
+      if (r.count === b.count && r.count > 0) setMsg(`SAM counted ${r.count} red and ${b.count} blue — they are the same!`); setCounts({ red: r.count, blue: b.count }); setVision([...(r.boxes || []).map((x: any) => ({ b: x, color: '#e53935' })), ...(b.boxes || []).map((x: any) => ({ b: x, color: '#1e88e5' }))]); setMsg(`SAM counted ${r.count} red and ${b.count} blue! See SAM's outlines? Which color has more?`)
       speak(`SAM counted ${r.count} red and ${b.count} blue. Which color has more?`)
     } catch { setMsg('SAM is resting. Play this round with the tap blocks below!') }
     setBusy(false)
   }
   const answer = (choice: 'red' | 'blue') => {
     const truth = counts ? (counts.red > counts.blue ? 'red' : counts.blue > counts.red ? 'blue' : 'same') : (blocksRound.red > blocksRound.blue ? 'red' : 'blue')
-    if (choice === truth || truth === 'same') { pop(720); setMsg('Yes! Great counting!'); speak('Yes! Great counting!'); setTimeout(next, 900) }
+    if (choice === truth) { pop(720); setMsg('Yes! Great counting!'); speak('Yes! Great counting!'); setTimeout(next, 900) }
     else { pop(210); setMsg(`Good try! Count with your finger, one by one. ${name} is cheering for you!`); speak('Good try! Count again, one by one.') }
   }
   const useBlocks = !photo
@@ -241,7 +243,7 @@ function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null;
     {useBlocks && <><p>Or tap every block to count it. <strong>{redTapped} red</strong> · <strong>{blueTapped} blue</strong></p>
       <div className="blocks">{blocks.map(b => <button key={b.id} className={`block ${b.c} ${tapped.has(b.id) ? 'counted' : ''}`} onClick={() => { setTapped(s => new Set(s).add(b.id)); pop(b.c === 'red' ? 500 : 380) }}>{tapped.has(b.id) ? '✓' : ''}</button>)}</div></>}
     {photo && !counts && !busy && <button className="btn" onClick={() => { setPhoto(null); setMsg('Okay, new photo! Show SAM your red and blue things.') }}>📷 Snap again</button>}
-    {ready && <><p className="ask">Which color has more?</p><div className="row"><button className="btn redBtn" onClick={() => answer('red')}>Red ({shownRed})</button><button className="btn blueBtn" onClick={() => answer('blue')}>Blue ({shownBlue})</button></div></>}
+    {ready && <><p className="ask">Which color has more?</p><div className="row"><button className="btn redBtn" onClick={() => answer('red')}>Red ({shownRed})</button><button className="btn blueBtn" onClick={() => answer('blue')}>Blue ({shownBlue})</button>{counts && counts.red === counts.blue && <button className="btn" onClick={() => { pop(720); setMsg('Yes! They are the same!'); speak('Yes! They are the same!'); setTimeout(next, 900) }}>They're the same!</button>}</div></>}
     <button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
 
@@ -261,7 +263,8 @@ function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null;
   const onSnap = async (d: string) => {
     setPhoto(d); setBusy(true); setMsg('SAM is finding your toys...')
     try {
-      let j = await sam('toy block', d); if (!j.count || j.count < 3) j = await sam('object', d)
+      let j = await sam('toy', d)
+      for (const w of ['block', 'cup', 'apple', 'banana', 'ball']) { if (j.count && j.count >= 3) break; const k = await sam(w, d); if ((k.count || 0) > (j.count || 0)) j = k }
       if (!j.boxes || j.boxes.length < 3) { setLabels(spriteLabels()); setMsg('SAM found fewer than 3 toys, so magic sprite fruit appeared instead! Slice the answer!') }
       else {
         const vals = [...new Set([answer, answer + 2, answer - 1, answer + 4, answer + 1])]
@@ -366,7 +369,7 @@ function Estimate({ name, img, onWin, onBack }: { name: string; img: string | nu
   const [msg, setMsg] = useState('Estimation is a superpower! Guess first — how many are in the jar? Then we count for real.')
   useEffect(() => { speak('How many do you think are in the jar? Make a guess!') }, [round])
   const reveal = (n: number) => { setReal(n); const d = Math.abs(n - (guess ?? 0)); setTimeout(() => { if (round >= total) onWin(); else { setRound(r => r + 1); setGuess(null); setReal(null); setUsePile(true); setMsg(`Round ${round + 1}! New jar — guess first!`) } }, 2600); setMsg(d === 0 ? `WOW! Exactly ${n}! You are an estimation star!` : d <= 2 ? `So close! There are ${n}. Great estimating!` : `There are ${n}! Estimating takes practice — ${name} loves your guess!`); speak(`There are ${n}!`) }
-  const onSnap = async (d: string) => { if (guess === null) { setMsg('Guess first! Tap a number, then snap.'); return } setBusy(true); setMsg('SAM is counting the real jar...'); try { let j = await sam('toy', d); if (!j.count) j = await sam('object', d); if (j.count) { setUsePile(false); reveal(j.count) } else setMsg('SAM could not count that photo. Try spreading the toys out — or use the jar below!') } catch { setMsg('SAM is resting — count the jar below together!') } setBusy(false) }
+  const onSnap = async (d: string) => { if (guess === null) { setMsg('Guess first! Tap a number, then snap.'); return } setBusy(true); setMsg('SAM is counting the real jar...'); try { let j = await sam('toy', d); for (const w of ['block', 'ball', 'cup', 'banana']) { if (j.count) break; j = await sam(w, d) } if (j.count) { setUsePile(false); reveal(j.count) } else setMsg('SAM could not count that photo. Try spreading the toys out — or use the jar below!') } catch { setMsg('SAM is resting — count the jar below together!') } setBusy(false) }
   return (<section className="panel"><h1>Estimation Jar</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
     {usePile && <div className="jar">{Array.from({ length: pile }, (_, i) => <span key={i} className="jarBall" style={{ background: ['#e53935', '#1e88e5', '#43a047', '#fb8c00'][i % 4] }} />)}</div>}
     {real !== null ? <p className="ask">There are {real}!</p> : <>
