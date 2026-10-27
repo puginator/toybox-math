@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { IconBalance, IconBuild, IconCount, IconHunt, IconJar, IconLamp, IconPattern, IconShow, IconSlice, IconSpot, IconCatch, IconSort, IconFingers } from './icons'
+import { IconBalance, IconBuild, IconCount, IconHunt, IconJar, IconLamp, IconPattern, IconShow, IconSlice, IconSpot, IconCatch, IconSort, IconFingers, IconMischief, IconDoor } from './icons'
 
-type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'estimate' | 'pattern' | 'hunt' | 'spotlight' | 'catch' | 'sortsize' | 'fingers' | 'home_tree' | 'celebrate'
+type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'estimate' | 'pattern' | 'hunt' | 'spotlight' | 'catch' | 'sortsize' | 'fingers' | 'mischief' | 'doors' | 'home_tree' | 'celebrate'
 type Stuffy = { name: string; img: string | null; hat: boolean; cape?: boolean; glasses?: boolean }
-const STOP_ICONS: Record<string, () => JSX.Element> = { ratio: IconCount, ninja: IconSlice, showme: IconShow, build: IconBuild, balance: IconBalance, estimate: IconJar, pattern: IconPattern, hunt: IconHunt, spotlight: IconSpot, catch: IconCatch, sortsize: IconSort, fingers: IconFingers, home_tree: IconLamp }
+const STOP_ICONS: Record<string, () => JSX.Element> = { ratio: IconCount, ninja: IconSlice, showme: IconShow, build: IconBuild, balance: IconBalance, estimate: IconJar, pattern: IconPattern, hunt: IconHunt, spotlight: IconSpot, catch: IconCatch, sortsize: IconSort, fingers: IconFingers, mischief: IconMischief, doors: IconDoor, home_tree: IconLamp }
 const STOPS = [
   { id: 'ratio', label: 'Dresser Drawer', sub: 'Counting blocks', prize: '' },
   { id: 'ninja', label: 'Nightstand Slice', sub: 'Fruit Ninja math', prize: 'hat' },
@@ -17,6 +17,8 @@ const STOPS = [
   { id: 'catch', label: 'Catch Grove', sub: 'Catch the falling answer', prize: '' },
   { id: 'sortsize', label: 'Big & Small Shelf', sub: 'Sort SAM finds by size', prize: '' },
   { id: 'fingers', label: 'Finger Meadow', sub: 'Answer with your fingers', prize: '' },
+  { id: 'mischief', label: 'Find the Mischief', sub: 'SAM gives the clues', prize: '' },
+  { id: 'doors', label: 'Story Doors', sub: 'Pick where the story goes', prize: '' },
   { id: 'home_tree', label: 'The Warm Lamp', sub: 'Home, at last', prize: 'cape' },
 ] as const
 const FALLBACK_STORY = (n: string) => `${n} is lost in the bedroom after lights-out! Cross the nightstand, climb the bookshelf, and follow the warm lamp home. Every stop you finish earns a star.`
@@ -36,6 +38,15 @@ export default function App() {
   const [stars, setStars] = useState(() => Number(localStorage.getItem('toybox-stars') || 0))
   const [samStatus, setSamStatus] = useState('Demo mode: SAM proxy not configured yet — fallbacks keep every game playable.')
   const [candidates, setCandidates] = useState<{ img: string; area: number }[]>([])
+  const [friend, setFriend] = useState<{ name: string; img: string | null }>(() => { try { return JSON.parse(localStorage.getItem('toybox-friend') || 'null') || { name: 'Peanut', img: null } } catch { return { name: 'Peanut', img: null } } })
+  useEffect(() => { try { localStorage.setItem('toybox-friend', JSON.stringify(friend)) } catch {} }, [friend])
+  const onFriendUpload = async (f: File) => {
+    const bmp = await createImageBitmap(f).catch(() => null); if (!bmp) return
+    const s = Math.min(1, 1024 / Math.max(bmp.width, bmp.height)); const c0 = document.createElement('canvas'); c0.width = Math.round(bmp.width * s); c0.height = Math.round(bmp.height * s); c0.getContext('2d')!.drawImage(bmp, 0, 0, c0.width, c0.height)
+    const dataUrl = c0.toDataURL('image/jpeg', 0.85); setFriend(fr => ({ ...fr, img: dataUrl })); speak(`A new friend for ${name}! SAM is cutting them out.`)
+    const j = await tryCutout(dataUrl, ['stuffed animal', 'plush toy', 'stuffed toy', 'teddy bear'])
+    if (j?.boxes?.length) { const img = new Image(); img.onload = () => { let bi = 0, best = -1; j.boxes.forEach((b: any, i: number) => { const a = (b.x2 - b.x1) * (b.y2 - b.y1); if (a > best) { best = a; bi = i } }); setFriend(fr => ({ ...fr, img: applyMask(img, j.boxes[bi], j.masks?.[bi]) })); speak(`${friend.name} is here! Now ${name} has a friend on the adventure!`) }; img.src = dataUrl }
+  }
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
   const name = stuffy.name || 'Biscuit'
 
@@ -121,12 +132,14 @@ export default function App() {
           <div className="stuffyStage">
             {stuffy.img ? <img className="stuffyImg" src={stuffy.img} alt={name} /> : <div className="stuffyBlob" aria-label="stuffy placeholder">🧸</div>}
             {stuffy.hat && <div className="hat">🎩</div>}{stuffy.glasses && <div className="glasses">🕶️</div>}{stuffy.cape && <div className="cape">🦸</div>}
+            {friend.img && <img className="stageFriend" src={friend.img} alt={friend.name} />}
           </div>
           <label className="btn fileBtn">Upload a stuffy photo<input type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])} /></label>
           <label className="nameRow">Name <input value={stuffy.name} onChange={e => setStuffy(s => ({ ...s, name: e.target.value }))} maxLength={16} /></label>
           <button className="btn big" onClick={() => { speak(FALLBACK_STORY(name)); setScreen('trail') }}>Start the adventure ▶</button>
           <button className="btn ghost" onClick={() => speak(`Hello! I am ${name}. Let's play math games together!`)}>🔊 Hear {name} talk</button>
           <PortraitPuzzle name={name} img={stuffy.img} done={done} />
+          <div className="friendBox">{friend.img ? <><img className="friendImg" src={friend.img} alt={friend.name} /><label className="nameRow">Friend <input value={friend.name} onChange={e => setFriend(fr => ({ ...fr, name: e.target.value }))} maxLength={16} /></label><p className="note">{friend.name} tags along on every adventure!</p></> : <><p className="note">Every hero needs a friend. Rescue a second stuffy for {name}!</p><label className="btn fileBtn">🧸 Rescue a friend<input type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && onFriendUpload(e.target.files[0])} /></label></>}</div>
           {(stuffy.hat || stuffy.glasses || stuffy.cape) && <p className="note">{name}'s treasures: {stuffy.hat ? '🎩 party hat ' : ''}{stuffy.glasses ? '🕶️ star glasses ' : ''}{stuffy.cape ? '🦸 hero cape' : ''} — earned on the trail!</p>}
           <p className="note">{samStatus}</p>
           {candidates.length > 0 && <div className="candRow">{candidates.map((c, i) => <button key={i} className="candBtn" onClick={() => { setStuffy(s => ({ ...s, img: c.img })); setCandidates([]); setSamStatus('What a great stuffy!'); speak('What a great stuffy!') }}><img src={c.img} alt={`Choice ${i + 1}`} /></button>)}</div>}
@@ -148,7 +161,7 @@ export default function App() {
               <path d="M84 74h8l3 10H81z" fill="#fb8c00" stroke="#6d4c2f" strokeWidth="0.7" /><circle cx="88" cy="88" r="5" fill="#ffe9a8" opacity="0.35" />
             </svg>
             <svg className="mapPath" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M12 6 C 70 14, 88 22, 82 34 C 76 46, 20 44, 14 56 C 9 67, 78 68, 84 78 C 89 87, 45 92, 30 96" fill="none" stroke="#d7ad58" strokeWidth="1.8" strokeDasharray="4 3" strokeLinecap="round" /></svg>
-            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); const isNext = unlocked && !isDone; const Icon = STOP_ICONS[s.id]; const pos = [{ l: 4, t: 0 }, { l: 68, t: 7 }, { l: 64, t: 18 }, { l: 8, t: 24 }, { l: 5, t: 35 }, { l: 60, t: 40 }, { l: 64, t: 52 }, { l: 16, t: 56 }, { l: 58, t: 68 }, { l: 12, t: 72 }, { l: 60, t: 81 }, { l: 14, t: 84 }, { l: 30, t: 92 }][i]
+            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); const isNext = unlocked && !isDone; const Icon = STOP_ICONS[s.id]; const pos = [{ l: 4, t: 0 }, { l: 68, t: 6 }, { l: 64, t: 15 }, { l: 8, t: 20 }, { l: 5, t: 29 }, { l: 60, t: 34 }, { l: 64, t: 44 }, { l: 16, t: 48 }, { l: 58, t: 58 }, { l: 12, t: 62 }, { l: 60, t: 70 }, { l: 14, t: 74 }, { l: 58, t: 83 }, { l: 14, t: 86 }, { l: 30, t: 93 }][i]
               return <button key={s.id} disabled={!unlocked} className={`mapStop ${isDone ? 'doneStop' : ''} ${isNext ? 'nextStop' : ''}`} style={{ left: `${pos.l}%`, top: `${pos.t}%` }} onClick={() => setScreen(s.id as Screen)}>
                 <span className="mapIcon"><Icon /></span><span className="mapLabel"><strong>{isDone ? '★ ' : !unlocked ? '🔒 ' : ''}{s.label}</strong><small>{s.sub}{s.prize ? ` · prize ${s.prize === 'hat' ? '🎩' : s.prize === 'glasses' ? '🕶️' : '🦸'}` : ''}</small></span>
                 {isNext && stuffy.img && <img className="mapBuddy" src={stuffy.img} alt={name} />}</button> })}
@@ -170,7 +183,9 @@ export default function App() {
       {screen === 'catch' && <CatchGame name={name} img={stuffy.img} onWin={() => win('catch')} onBack={() => setScreen('trail')} />}
       {screen === 'sortsize' && <SortSize name={name} img={stuffy.img} onWin={() => win('sortsize')} onBack={() => setScreen('trail')} />}
       {screen === 'fingers' && <Fingers name={name} img={stuffy.img} onWin={() => win('fingers')} onBack={() => setScreen('trail')} />}
-      {screen === 'home_tree' && <HomeTree name={name} img={stuffy.img} doneCount={done.length} total={STOPS.length} onWin={() => win('home_tree')} onBack={() => setScreen('trail')} />}
+      {screen === 'mischief' && <Mischief name={name} img={stuffy.img} onWin={() => win('mischief')} onBack={() => setScreen('trail')} />}
+      {screen === 'doors' && <StoryDoors name={name} img={stuffy.img} onWin={() => win('doors')} onBack={() => setScreen('trail')} />}
+      {screen === 'home_tree' && <HomeTree name={friend.img ? `${name} and ${friend.name}` : name} img={stuffy.img} doneCount={done.length} total={STOPS.length} onWin={() => win('home_tree')} onBack={() => setScreen('trail')} />}
 
       {screen === 'celebrate' && (
         <section className="panel celebrate"><Confetti /><div className="bigStar">★</div><h1>Great job!</h1>
@@ -563,5 +578,61 @@ function Fingers({ name, img, onWin, onBack }: { name: string; img: string | nul
     <p className="fingerCount">{count} 🖐️</p>{err && <p className="note">{err}</p>}
     {err && <div className="row">{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <button key={n} className="btn ghost" onClick={() => setCount(n)}>{n}</button>)}</div>}
     <p className="note">Hold your fingers still — when the number matches, it counts!</p>
+    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+}
+
+function Mischief({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+  const total = 3; const [round, setRound] = useState(1); const [photo, setPhoto] = useState<string | null>(null); const [objs, setObjs] = useState<any[]>([])
+  const [clue, setClue] = useState<{ text: string; idx: number } | null>(null); const [foundIdx, setFoundIdx] = useState<number | null>(null); const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('A mischief-maker hid among your toys! Snap them, and SAM will give you a clue.')
+  const makeClue = (boxes: any[]) => {
+    const areas = boxes.map(b => (b.x2 - b.x1) * (b.y2 - b.y1)); const cxs = boxes.map(b => (b.x1 + b.x2) / 2); const cys = boxes.map(b => (b.y1 + b.y2) / 2)
+    const options = [
+      { text: 'the BIGGEST toy', idx: areas.indexOf(Math.max(...areas)) }, { text: 'the smallest toy', idx: areas.indexOf(Math.min(...areas)) },
+      { text: 'the toy on the far LEFT', idx: cxs.indexOf(Math.min(...cxs)) }, { text: 'the toy on the far RIGHT', idx: cxs.indexOf(Math.max(...cxs)) },
+      { text: 'the toy nearest the TOP', idx: cys.indexOf(Math.min(...cys)) }]
+    return options[Math.floor(Math.random() * options.length)]
+  }
+  const onSnap = async (d: string) => {
+    setPhoto(d); setBusy(true); setFoundIdx(null); setMsg('SAM is peeking at your toys...')
+    try { let j = await sam('toy', d); for (const w of ['block', 'cup', 'ball']) { if ((j.count || 0) >= 3) break; const k = await sam(w, d); if ((k.count || 0) > (j.count || 0)) j = k }
+      if (!j.boxes || j.boxes.length < 3) { setMsg('SAM needs at least 3 toys to hide among. Spread them out!'); setObjs([]) }
+      else { setObjs(j.boxes); const c = makeClue(j.boxes); setClue(c); setMsg(`Clue: tap ${c.text}!`); speak(`Tap ${c.text}!`) }
+    } catch { setMsg('SAM is resting — snap again in a moment!') }
+    setBusy(false)
+  }
+  const tap = (i: number) => {
+    if (!clue || foundIdx !== null) return
+    if (i === clue.idx) { pop(740); setFoundIdx(i); speak('You found the mischief!'); if (round >= total) setTimeout(onWin, 1200); else setTimeout(() => { setRound(r => r + 1); setPhoto(null); setObjs([]); setClue(null); setFoundIdx(null); setMsg(`Round ${round + 1}: hide the toys again!`) }, 1200) }
+    else { pop(210); setMsg(`Not that one — the clue was ${clue.text}. Look again!`); speak('Not that one. Look again!') }
+  }
+  return (<section className="panel"><h1>Find the Mischief</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+    {!photo && <CameraSnap onSnap={onSnap} />}{busy && <p className="cheer">SAM is peeking…</p>}
+    {photo && objs.length > 0 && <div className="visionWrap"><img src={photo} alt="Toys with a mischief hiding" className="tablePhoto" />
+      {objs.map((b, i) => <button key={i} className={`visionBox sortBox ${foundIdx === i ? 'sortedBox' : ''}`} style={{ left: `${b.x1 / b.frameW * 100}%`, top: `${b.y1 / b.frameH * 100}%`, width: `${(b.x2 - b.x1) / b.frameW * 100}%`, height: `${(b.y2 - b.y1) / b.frameH * 100}%` }} onClick={() => tap(i)}>{foundIdx === i ? '😈★' : '?'}</button>)}</div>}
+    {photo && !busy && !clue && <button className="btn" onClick={() => { setPhoto(null) }}>📷 New photo</button>}
+    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+}
+
+const DOOR_FALLBACK = [
+  { scene: 'comes to a wiggly bridge over a babbling stream. A frog in a tiny hat is fishing!', a: 'Cross the wiggly bridge', b: 'Ask the frog for a boat' },
+  { scene: 'finds a garden where the flowers hum lullabies and the paths smell like warm biscuits.', a: 'Follow the humming flowers', b: 'Follow the biscuit smell' },
+  { scene: 'sees the warm lamp glowing at last, just past a hill of soft pillows!', a: 'Climb the pillow hill', b: 'Call out to the lamp' }]
+function StoryDoors({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+  const total = 3; const [chapter, setChapter] = useState(1); const [picked, setPicked] = useState<string[]>([])
+  const [scene, setScene] = useState<{ scene: string; a: string; b: string } | null>(null); const [loading, setLoading] = useState(false)
+  const load = async (ch: number, prev: string[]) => {
+    setLoading(true); setScene(null)
+    try { const r = await fetch('/api/story', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, doors: { chapter: ch, previous: prev } }) }); const j = await r.json(); if (j.doors) setScene(j.doors); else setScene(DOOR_FALLBACK[ch - 1]) } catch { setScene(DOOR_FALLBACK[ch - 1]) }
+    setLoading(false)
+  }
+  useEffect(() => { load(1, []) }, [])
+  useEffect(() => { if (scene) speak(`${name} ${scene.scene}. Which way? ${scene.a}, or ${scene.b}?`) }, [scene])
+  const pick = (choice: string) => { pop(620); const prev = [...picked, choice]; setPicked(prev); if (chapter >= total) { speak(`${name} made it! What an adventure you chose!`); setTimeout(onWin, 1000) } else { setChapter(c => c + 1); load(chapter + 1, prev) } }
+  return (<section className="panel"><h1>Story Doors</h1><p className="roundBadge">Chapter {Math.min(chapter, total)} of {total}</p>
+    <Companion name={name} img={img} msg={picked.length ? `You chose: ${picked.join(' → ')}` : `${name}'s story is yours to steer. There are no wrong doors!`} />
+    {loading && <p className="cheer">Muse Spark is writing the next page…</p>}
+    {scene && <><p className="story storyScene">{name} {scene.scene}</p><p className="ask">Which way, storyteller?</p>
+      <div className="doorRow"><button className="btn doorBtn" onClick={() => pick(scene.a)}>🚪 {scene.a}</button><button className="btn doorBtn alt" onClick={() => pick(scene.b)}>🚪 {scene.b}</button></div></>}
     <button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }

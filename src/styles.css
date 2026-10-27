@@ -55,7 +55,7 @@ h1{font-family:"Baloo 2",cursive;font-size:38px;margin:8px 0}.btn{background:#43
 .huntList{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0}
 .foundChip{background:#43a047}.hideChip{background:#fb8c00}
 
-.mapScene{position:relative;height:780px;margin:18px 0;border:3px solid #6d4c2f;border-radius:20px;background:linear-gradient(#2b3a6b 0 46%, #6d4c2f 46% 47.5%, #a9743f 47.5% 100%);overflow:hidden}
+.mapScene{position:relative;height:880px;margin:18px 0;border:3px solid #6d4c2f;border-radius:20px;background:linear-gradient(#2b3a6b 0 46%, #6d4c2f 46% 47.5%, #a9743f 47.5% 100%);overflow:hidden}
 .mapPath{position:absolute;inset:0;width:100%;height:100%}
 .moon{position:absolute;right:12px;top:8px;font-size:30px}.windowStars{position:absolute;left:14px;top:10px;color:#ffe9a8;letter-spacing:8px}
 .mapStop{position:absolute;display:flex;gap:8px;align-items:center;background:transparent;border:none;cursor:pointer;font-family:inherit;text-align:left;max-width:230px}
@@ -81,3 +81,9 @@ h1{font-family:"Baloo 2",cursive;font-size:38px;margin:8px 0}.btn{background:#43
 .sortBox{background:rgba(255,236,179,.25);color:#fff;cursor:pointer;font-size:14px}
 .sortedBox{background:rgba(67,160,71,.45);border-color:#43a047!important;font-size:20px}
 .fingerCam{transform:scaleX(-1)}.fingerCount{font-size:44px;font-weight:800;margin:6px}
+.doorRow{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:16px 0}
+.doorBtn{background:#8d6e63;font-size:19px;padding:16px 20px}.doorBtn.alt{background:#5c8fa8}
+.storyScene{font-size:22px;background:#fff3e0;border:3px solid #6d4c2f;border-radius:16px;padding:18px}
+.friendBox{margin-top:14px;border-top:3px dashed #d7ad58;padding-top:14px}
+.friendImg{max-width:130px;max-height:120px;object-fit:contain;filter:drop-shadow(3px 4px 0 rgba(38,50,56,.25))}
+.stageFriend{position:absolute;right:16%;bottom:8px;width:74px;height:74px;object-fit:contain;filter:drop-shadow(2px 3px 0 rgba(0,0,0,.3))}

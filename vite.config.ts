@@ -29,7 +29,7 @@ function storyDevPlugin() {
       if (!key) { res.statusCode = 501; return res.end(JSON.stringify({ error: 'no key', fallback: true })) }
       let body = ''; req.on('data', (c: any) => body += c); req.on('end', async () => {
         try { // @ts-ignore - plain JS serverless module
-          const { callStory } = await import('./api/story.js' as string); res.end(JSON.stringify(await callStory(JSON.parse(body || '{}'), key))) }
+          const { callStory, callDoors } = await import('./api/story.js' as string); const parsed2 = JSON.parse(body || '{}'); res.end(JSON.stringify(parsed2.doors ? await callDoors(parsed2, key) : await callStory(parsed2, key))) }
         catch (e: any) { res.statusCode = 502; res.end(JSON.stringify({ error: String(e.message || e), fallback: true })) }
       })
     })
