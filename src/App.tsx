@@ -35,14 +35,23 @@ const STOPS = [
 ] as const
 const FALLBACK_STORY = (n: string) => `${n} is lost in the bedroom after lights-out! Cross the nightstand, climb the bookshelf, and follow the warm lamp home. Every stop you finish earns a star.`
 
-function speak(text: string) {
-  try { const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; speechSynthesis.cancel(); speechSynthesis.speak(u) } catch {}
+export const voiceEnabled = () => { try { return localStorage.getItem('toybox-voice') === 'on' } catch { return false } }
+function pickVoice() { try { const vs = speechSynthesis.getVoices().filter(v => v.lang?.toLowerCase().startsWith('en')); return vs.find(v => /samantha|aria|zira|google us english|natural|jenny/i.test(v.name)) || vs.find(v => v.lang === 'en-US') || vs[0] } catch { return undefined } }
+function speak(text: string, force = false) {
+  if (!force && !voiceEnabled()) return
+  try { const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; u.pitch = 1.05; const v = pickVoice(); if (v) u.voice = v; speechSynthesis.cancel(); speechSynthesis.speak(u) } catch {}
 }
 let AC: AudioContext | null = null; const audio = () => { if (!AC) AC = new AudioContext(); if (AC.state === 'suspended') AC.resume(); return AC }
 function jingle() { try { const ctx = audio();[523,659,784,1047].forEach((f,i)=>{ const o=ctx.createOscillator(); const g=ctx.createGain(); o.frequency.value=f; g.gain.setValueAtTime(0.12, ctx.currentTime+i*0.13); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+i*0.13+0.3); o.connect(g).connect(ctx.destination); o.start(ctx.currentTime+i*0.13); o.stop(ctx.currentTime+i*0.13+0.32) }) } catch {} }
 function pop(freq = 520) {
   try { const ctx = audio(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.frequency.value = freq; g.gain.setValueAtTime(0.15, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18); o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.2) } catch {}
 }
+
+// One stop per row-band: 16 stops, evenly spaced vertically so icons/labels never stack.
+// Left column cycles left -> right -> middle to keep the winding-path feel.
+const MAP_LEFTS = [6, 56, 30, 6, 56, 30, 6, 56, 30, 6, 56, 30, 6, 56, 30, 38]
+const MAP_POS = STOPS.map((_, i) => ({ l: MAP_LEFTS[i], t: (i + 0.5) * (100 / STOPS.length) }))
+const MAP_PATH_D = MAP_POS.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.l + 9} ${p.t}`).join(' ')
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home')
@@ -51,6 +60,8 @@ export default function App() {
   const [samStatus, setSamStatus] = useState('Demo mode: SAM proxy not configured yet — fallbacks keep every game playable.')
   const [candidates, setCandidates] = useState<{ img: string; area: number }[]>([])
   const [levelId, setLevelId] = useState<LevelId>(() => (localStorage.getItem('toybox-level') as LevelId) || 'explorer')
+  const [voiceOn, setVoiceOn] = useState(() => { try { return localStorage.getItem('toybox-voice') === 'on' } catch { return false } })
+  const toggleVoice = () => { const next = !voiceOn; setVoiceOn(next); try { localStorage.setItem('toybox-voice', next ? 'on' : 'off'); if (!next) speechSynthesis.cancel() } catch {}; if (next) speak(`Hello! I am ${name}. Let's play math games together!`, true) }
   useEffect(() => { localStorage.setItem('toybox-level', levelId) }, [levelId])
   const lv = LEVELS[levelId] || LEVELS.explorer
   const [friend, setFriend] = useState<{ name: string; img: string | null }>(() => { try { return JSON.parse(localStorage.getItem('toybox-friend') || 'null') || { name: 'Peanut', img: null } } catch { return { name: 'Peanut', img: null } } })
@@ -142,7 +153,7 @@ export default function App() {
 
   return (
     <main className="app">
-      <header><div className="logo">Toybox Math</div><div className="stars" aria-label="stars">★ {stars}</div></header>
+      <header><div className="logo">Toybox Math</div><div className="headRight"><button className={`voiceToggle ${voiceOn ? 'voiceOn' : ''}`} onClick={toggleVoice} aria-pressed={voiceOn} title="Turn read-aloud on or off">{voiceOn ? '🔊 Voice on' : '🔇 Voice off'}</button><div className="stars" aria-label="stars">★ {stars}</div></div></header>
       <p className="privacy">Camera frames are never saved. Only your stuffy photo stays, on this device.</p>
 
       {screen === 'home' && (
@@ -158,7 +169,8 @@ export default function App() {
           <p className="levelAsk">What grade are you in?</p>
           <div className="levelRow">{(Object.keys(LEVELS) as LevelId[]).map(id => <button key={id} className={`levelCard ${levelId === id ? 'levelOn' : ''}`} onClick={() => { setLevelId(id); pop(500); speak(`${LEVELS[id].label}! ${LEVELS[id].sub}. Great choice!`) }}><span>{LEVELS[id].icon}</span><strong>{LEVELS[id].label}</strong><small>{LEVELS[id].sub}</small></button>)}</div>
           <button className="btn big" onClick={() => { speak(FALLBACK_STORY(name)); setScreen('trail') }}>Start the adventure ▶</button>
-          <button className="btn ghost" onClick={() => speak(`Hello! I am ${name}. Let's play math games together!`)}>🔊 Hear {name} talk</button>
+          <p className="note voiceNote">Read-aloud is <strong>{voiceOn ? 'on' : 'off'}</strong> — use the Voice button at the top any time. {voiceOn ? '' : 'Tap it to have the game read questions out loud.'}</p>
+          <button className="btn ghost" onClick={() => speak(`Hello! I am ${name}. Let's play math games together!`, true)}>🔊 Hear {name} talk</button>
           <PortraitPuzzle name={name} img={stuffy.img} done={done} />
           <div className="friendBox">{friend.img ? <><img className="friendImg" src={friend.img} alt={friend.name} /><label className="nameRow">Friend <input value={friend.name} onChange={e => setFriend(fr => ({ ...fr, name: e.target.value }))} maxLength={16} /></label><p className="note">{friend.name} tags along on every adventure!</p></> : <><p className="note">Every hero needs a friend. Rescue a second stuffy for {name}!</p><label className="btn fileBtn">🧸 Rescue a friend<input type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && onFriendUpload(e.target.files[0])} /></label></>}</div>
           {(stuffy.hat || stuffy.glasses || stuffy.cape) && <p className="note">{name}'s treasures: {stuffy.hat ? '🎩 party hat ' : ''}{stuffy.glasses ? '🕶️ star glasses ' : ''}{stuffy.cape ? '🦸 hero cape' : ''} — earned on the trail!</p>}
@@ -181,8 +193,8 @@ export default function App() {
               <rect x="4" y="72" width="42" height="14" rx="3" fill="#4a5da9" stroke="#2c3a75" strokeWidth="0.8" /><rect x="4" y="68" width="13" height="9" rx="3" fill="#fff8e1" /><rect x="8" y="76" width="34" height="3" fill="#e53935" opacity="0.55" />
               <path d="M84 74h8l3 10H81z" fill="#fb8c00" stroke="#6d4c2f" strokeWidth="0.7" /><circle cx="88" cy="88" r="5" fill="#ffe9a8" opacity="0.35" />
             </svg>
-            <svg className="mapPath" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M12 6 C 70 14, 88 22, 82 34 C 76 46, 20 44, 14 56 C 9 67, 78 68, 84 78 C 89 87, 45 92, 30 96" fill="none" stroke="#d7ad58" strokeWidth="1.8" strokeDasharray="4 3" strokeLinecap="round" /></svg>
-            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); const isNext = unlocked && !isDone; const Icon = STOP_ICONS[s.id]; const pos = [{ l: 4, t: 0 }, { l: 68, t: 5 }, { l: 64, t: 13 }, { l: 8, t: 18 }, { l: 5, t: 26 }, { l: 60, t: 31 }, { l: 64, t: 40 }, { l: 16, t: 44 }, { l: 58, t: 52 }, { l: 12, t: 57 }, { l: 60, t: 64 }, { l: 14, t: 68 }, { l: 58, t: 76 }, { l: 14, t: 79 }, { l: 58, t: 86 }, { l: 26, t: 91 }][i]
+            <svg className="mapPath" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d={MAP_PATH_D} fill="none" stroke="#d7ad58" strokeWidth="1.2" strokeDasharray="3 2.4" strokeLinecap="round" vectorEffect="non-scaling-stroke" /></svg>
+            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); const isNext = unlocked && !isDone; const Icon = STOP_ICONS[s.id]; const pos = MAP_POS[i]
               return <button key={s.id} disabled={!unlocked} className={`mapStop ${isDone ? 'doneStop' : ''} ${isNext ? 'nextStop' : ''}`} style={{ left: `${pos.l}%`, top: `${pos.t}%` }} onClick={() => setScreen(s.id as Screen)}>
                 <span className="mapIcon"><Icon /></span><span className="mapLabel"><strong>{isDone ? '★ ' : !unlocked ? '🔒 ' : ''}{s.label}</strong><small>{s.sub}{s.prize ? ` · prize ${s.prize === 'hat' ? '🎩' : s.prize === 'glasses' ? '🕶️' : '🦸'}` : ''}</small></span>
                 {isNext && stuffy.img && <img className="mapBuddy" src={stuffy.img} alt={name} />}</button> })}

@@ -132,3 +132,28 @@ input[type="text"],input:not([type]){border:2.5px solid #d8cdb2!important}
 .scanBadge{position:absolute;left:10px;bottom:10px;background:rgba(20,20,40,.85);color:#a5ffb0;border-radius:999px;padding:5px 14px;font-weight:800;font-size:14px}
 .scanBadge.scanning{color:#ffe082}
 .sightBadge{position:absolute;right:10px;top:10px;background:rgba(20,20,40,.85);color:#ffd54f;border-radius:999px;padding:5px 14px;font-weight:800;font-size:14px}
+
+/* ——— Journey map cleanup: one stop per band, icon + label side by side, nothing stacked ——— */
+.mapScene{height:1660px}
+.mapSceneArt{opacity:.5}
+.mapStop{flex-direction:row;align-items:center;gap:8px;max-width:248px;transform:translateY(-50%);text-align:left}
+.mapIcon{width:56px;height:56px}
+.mapLabel{text-align:left;padding:5px 9px;min-width:0}
+.mapLabel strong{font-size:14px;line-height:1.15;white-space:normal}
+.mapLabel small{font-size:11px;line-height:1.2}
+.mapBuddy{left:auto;right:-6px;top:-26px;transform:none;width:40px;height:40px}
+.headRight{display:flex;align-items:center;gap:10px}
+.voiceToggle{font-family:inherit;font-weight:800;font-size:15px;background:#fff;color:var(--ink);border:2.5px solid #6d4c2f;border-bottom:4px solid #ded2b8;border-radius:999px;padding:6px 14px;cursor:pointer}
+.voiceToggle:active{transform:translateY(2px);border-bottom-width:2px}
+.voiceToggle.voiceOn{background:#e8f5e9;border-color:#58a700}
+.voiceNote{max-width:440px;margin:10px auto 2px}
+@media(max-width:620px){
+  .mapScene{height:1480px}
+  .mapStop{max-width:158px;gap:5px}
+  .mapIcon{width:46px;height:46px}
+  .mapLabel{padding:3px 6px}
+  .mapLabel strong{font-size:11.5px}
+  .mapLabel small{display:none}
+  .voiceToggle{font-size:13px;padding:5px 10px}
+  .logo{font-size:25px}.stars{font-size:19px;padding:3px 11px}
+}
