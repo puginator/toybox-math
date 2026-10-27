@@ -50,3 +50,7 @@ h1{font-family:"Baloo 2",cursive;font-size:38px;margin:8px 0}.btn{background:#43
 .puzzleGrid{display:grid;grid-template-columns:repeat(3,84px);gap:5px;justify-content:center;margin:10px auto}
 .puzzlePiece{width:84px;height:84px;border:3px solid #263238;border-radius:10px;background:#ffe0b2;display:grid;place-items:center;font-size:34px;font-weight:800;color:#a1887f;background-repeat:no-repeat}
 .puzzlePiece.got{background-color:#fff}
+.visionWrap{position:relative}.visionBox{position:absolute;border:3px solid #e53935;border-radius:10px;color:#fff;font-weight:800;font-size:13px;padding:1px 6px;text-shadow:0 1px 2px #000;pointer-events:none;box-sizing:border-box}
+.huntBox{border-color:#43a047;background:rgba(67,160,71,.25)}
+.huntList{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+.foundChip{background:#43a047}.hideChip{background:#fb8c00}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'estimate' | 'pattern' | 'home_tree' | 'celebrate'
+type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'estimate' | 'pattern' | 'hunt' | 'home_tree' | 'celebrate'
 type Stuffy = { name: string; img: string | null; hat: boolean; cape?: boolean; glasses?: boolean }
 const STOPS = [
   { id: 'ratio', label: 'Counting Meadow', sub: 'Ratio counting', prize: '' },
@@ -10,6 +10,7 @@ const STOPS = [
   { id: 'balance', label: 'Balance Falls', sub: 'Which side has more?', prize: '' },
   { id: 'estimate', label: 'Estimation Jar', sub: 'Guess, then SAM counts', prize: '' },
   { id: 'pattern', label: 'Pattern Path', sub: 'Copy the pattern', prize: '' },
+  { id: 'hunt', label: 'SAM Scavenger Hunt', sub: 'SAM finds hidden things', prize: '' },
   { id: 'home_tree', label: 'Home Tree', sub: 'The rescue finale', prize: 'cape' },
 ] as const
 const FALLBACK_STORY = (n: string) => `${n} is lost in the Toybox Forest! Follow the trail, play the counting games, and help ${n} find the way home. Every game you finish earns a star.`
@@ -145,6 +146,7 @@ export default function App() {
       {screen === 'balance' && <Balance name={name} img={stuffy.img} onWin={() => win('balance')} onBack={() => setScreen('trail')} />}
       {screen === 'estimate' && <Estimate name={name} img={stuffy.img} onWin={() => win('estimate')} onBack={() => setScreen('trail')} />}
       {screen === 'pattern' && <PatternCopy name={name} img={stuffy.img} onWin={() => win('pattern')} onBack={() => setScreen('trail')} />}
+      {screen === 'hunt' && <Hunt name={name} img={stuffy.img} onWin={() => win('hunt')} onBack={() => setScreen('trail')} />}
       {screen === 'home_tree' && <HomeTree name={name} img={stuffy.img} doneCount={done.length} total={STOPS.length} onWin={() => win('home_tree')} onBack={() => setScreen('trail')} />}
 
       {screen === 'celebrate' && (
@@ -190,17 +192,18 @@ function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null;
   const [round, setRound] = useState(1); const [msg, setMsg] = useState(`Put some red things and blue things on the table, then snap a photo!`)
   const [photo, setPhoto] = useState<string | null>(null); const [busy, setBusy] = useState(false)
   const [counts, setCounts] = useState<{ red: number; blue: number } | null>(null)
+  const [vision, setVision] = useState<{ b: any; color: string }[]>([])
   const [tapped, setTapped] = useState<Set<string>>(new Set())
   const [blocksRound, setBlocksRound] = useState(() => { const red = 2 + Math.floor(Math.random() * 4); let blue = 1 + Math.floor(Math.random() * 5); if (blue === red) blue += 1; return { red, blue } })
   const blocks = useMemo(() => [...Array(blocksRound.red).fill('red'), ...Array(blocksRound.blue).fill('blue')].map((c, i) => ({ c, id: `${c}-${i}` })), [blocksRound])
   useEffect(() => { speak(msg) }, [round])
-  const next = () => { if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setCounts(null); setTapped(new Set()); const red = 2 + Math.floor(Math.random() * 4); let blue = 1 + Math.floor(Math.random() * 5); if (blue === red) blue += 1; setBlocksRound({ red, blue }); setMsg(`Round ${round + 1}! Show me red and blue things again — SAM will count them.`) } }
+  const next = () => { if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setCounts(null); setVision([]); setTapped(new Set()); const red = 2 + Math.floor(Math.random() * 4); let blue = 1 + Math.floor(Math.random() * 5); if (blue === red) blue += 1; setBlocksRound({ red, blue }); setMsg(`Round ${round + 1}! Show me red and blue things again — SAM will count them.`) } }
   const onSnap = async (d: string) => {
     setPhoto(d); setBusy(true); setMsg('SAM is counting your red and blue things...')
     try {
       const [r, b] = [await sam('red object', d), await sam('blue object', d)]
       if ((r.count || 0) + (b.count || 0) === 0) { setMsg('SAM could not see red or blue things. Spread them out, give them space, and snap again!'); setBusy(false); return }
-      setCounts({ red: r.count, blue: b.count }); setMsg(`SAM counted ${r.count} red and ${b.count} blue! Which color has more?`)
+      setCounts({ red: r.count, blue: b.count }); setVision([...(r.boxes || []).map((x: any) => ({ b: x, color: '#e53935' })), ...(b.boxes || []).map((x: any) => ({ b: x, color: '#1e88e5' }))]); setMsg(`SAM counted ${r.count} red and ${b.count} blue! See SAM's outlines? Which color has more?`)
       speak(`SAM counted ${r.count} red and ${b.count} blue. Which color has more?`)
     } catch { setMsg('SAM is resting. Play this round with the tap blocks below!') }
     setBusy(false)
@@ -217,7 +220,7 @@ function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null;
   return (<section className="panel"><h1>Counting Meadow</h1><p className="roundBadge">Round {round} of {totalRounds}</p>
     <Companion name={name} img={img} msg={msg} />
     {!photo && <CameraSnap onSnap={onSnap} />}
-    {photo && <div className="photoWrap"><img src={photo} alt="Your table" className="tablePhoto" />{counts && <div className="countChips"><span className="chip redChip">Red: {counts.red}</span><span className="chip blueChip">Blue: {counts.blue}</span></div>}</div>}
+    {photo && <div className="photoWrap"><div className="visionWrap"><img src={photo} alt="Your table" className="tablePhoto" />{vision.map((v, i) => <div key={i} className="visionBox" style={{ left: `${v.b.x1 / v.b.frameW * 100}%`, top: `${v.b.y1 / v.b.frameH * 100}%`, width: `${(v.b.x2 - v.b.x1) / v.b.frameW * 100}%`, height: `${(v.b.y2 - v.b.y1) / v.b.frameH * 100}%`, borderColor: v.color }}>SAM</div>)}</div>{counts && <div className="countChips"><span className="chip redChip">Red: {counts.red}</span><span className="chip blueChip">Blue: {counts.blue}</span></div>}</div>}
     {busy && <p className="cheer">SAM is looking…</p>}
     {useBlocks && <><p>Or tap every block to count it. <strong>{redTapped} red</strong> · <strong>{blueTapped} blue</strong></p>
       <div className="blocks">{blocks.map(b => <button key={b.id} className={`block ${b.c} ${tapped.has(b.id) ? 'counted' : ''}`} onClick={() => { setTapped(s => new Set(s).add(b.id)); pop(b.c === 'red' ? 500 : 380) }}>{tapped.has(b.id) ? '✓' : ''}</button>)}</div></>}
@@ -400,4 +403,33 @@ function HandBlade({ onSliceAt }: { sliced: Set<number>; onSliceAt: (clientX: nu
   return <div className="handStage"><video ref={video} autoPlay playsInline muted className="handVideo" />
     {tip && <div className="tipDot" style={{ left: `${tip.x}%`, top: `${tip.y}%` }}>✋</div>}
     {err ? <p className="handErr">{err}</p> : !tip && <p className="handHint">Show your hand to the camera…</p>}</div>
+}
+
+function Hunt({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+  const pool = ['cup', 'book', 'banana', 'apple', 'spoon', 'hat', 'shoe', 'toy car', 'teddy bear', 'block']
+  const [items] = useState(() => [...pool].sort(() => 0.5 - Math.random()).slice(0, 3))
+  const [found, setFound] = useState<Record<string, any[]>>({}); const [photo, setPhoto] = useState<string | null>(null); const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(`SAM hunts with words! Hide these where SAM can see them, then snap a photo: ${items.join(', ')}.`)
+  useEffect(() => { speak(`Scavenger hunt! Can SAM find ${items.join(', ')}?`) }, [])
+  const foundCount = items.filter(i => found[i]).length
+  useEffect(() => { if (foundCount === items.length && items.length) { speak('SAM found everything!'); setTimeout(onWin, 1000) } }, [foundCount])
+  const onSnap = async (d: string) => {
+    setPhoto(d); setBusy(true); setMsg('SAM is hunting, one word at a time...')
+    const next: Record<string, any[]> = { ...found }; let newly = 0
+    for (const item of items) { if (next[item]) continue; try { const j = await sam(item, d); if (j.count > 0) { next[item] = j.boxes; newly++ } } catch {} }
+    setFound(next); setBusy(false)
+    const left = items.filter(i => !next[i])
+    setMsg(newly ? `SAM found ${newly} new thing${newly > 1 ? 's' : ''}! ${left.length ? `Still hiding: ${left.join(', ')}. Move them into the light and snap again!` : 'Everything found!'}` : `SAM could not spot them yet. Bring them closer, spread them out, and snap again!`)
+    if (left.length) speak(`Still hiding: ${left.join(', ')}`)
+  }
+  const allBoxes = items.flatMap(item => (found[item] || []).map(b => ({ b, item })))
+  return (<section className="panel"><h1>SAM Scavenger Hunt</h1><p className="roundBadge">Found {foundCount} of {items.length}</p>
+    <Companion name={name} img={img} msg={msg} />
+    <div className="huntList">{items.map(i => <span key={i} className={`chip ${found[i] ? 'foundChip' : 'hideChip'}`}>{found[i] ? '★' : '🔍'} {i}</span>)}</div>
+    {!photo && <CameraSnap onSnap={onSnap} />}
+    {photo && <div className="visionWrap"><img src={photo} alt="Hunt photo" className="tablePhoto" />{allBoxes.map((v, i) => <div key={i} className="visionBox huntBox" style={{ left: `${v.b.x1 / v.b.frameW * 100}%`, top: `${v.b.y1 / v.b.frameH * 100}%`, width: `${(v.b.x2 - v.b.x1) / v.b.frameW * 100}%`, height: `${(v.b.y2 - v.b.y1) / v.b.frameH * 100}%` }}>{v.item}</div>)}</div>}
+    {busy && <p className="cheer">SAM is hunting…</p>}
+    {photo && !busy && foundCount < items.length && <button className="btn" onClick={() => { setPhoto(null); setMsg('New photo! Show SAM where the hiding things are.') }}>📷 Snap again</button>}
+    <p className="note">This only works because SAM 3.1 understands words: tell it "banana" and it finds the banana's exact pixels.</p>
+    <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
 }
