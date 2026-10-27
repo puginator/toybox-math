@@ -256,7 +256,7 @@ function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null;
   const shownRed = counts?.red ?? blocksRound.red, shownBlue = counts?.blue ?? blocksRound.blue
   const redTapped = blocks.filter(x => x.c === 'red' && tapped.has(x.id)).length, blueTapped = blocks.filter(x => x.c === 'blue' && tapped.has(x.id)).length
   const ready = counts ? true : tapped.size === blocks.length
-  return (<section className="panel"><h1>Counting Meadow</h1><p className="roundBadge">Round {round} of {totalRounds}</p>
+  return (<section className="panel"><h1>Dresser Drawer</h1><GameTop round={round} total={totalRounds} onBack={onBack} />
     <Companion name={name} img={img} msg={msg} />
     {!photo && <CameraSnap onSnap={onSnap} />}
     {photo && <div className="photoWrap"><div className="visionWrap"><img src={photo} alt="Your table" className="tablePhoto" />{vision.map((v, i) => <div key={i} className="visionBox" style={{ left: `${v.b.x1 / v.b.frameW * 100}%`, top: `${v.b.y1 / v.b.frameH * 100}%`, width: `${(v.b.x2 - v.b.x1) / v.b.frameW * 100}%`, height: `${(v.b.y2 - v.b.y1) / v.b.frameH * 100}%`, borderColor: v.color }}>SAM</div>)}</div>{counts && <div className="countChips"><span className="chip redChip">Red: {counts.red}</span><span className="chip blueChip">Blue: {counts.blue}</span></div>}</div>}
@@ -265,7 +265,7 @@ function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null;
       <div className="blocks">{blocks.map(b => <button key={b.id} className={`block ${b.c} ${tapped.has(b.id) ? 'counted' : ''}`} onClick={() => { setTapped(s => new Set(s).add(b.id)); pop(b.c === 'red' ? 500 : 380) }}>{tapped.has(b.id) ? '✓' : ''}</button>)}</div></>}
     {photo && !counts && !busy && <button className="btn" onClick={() => { setPhoto(null); setMsg('Okay, new photo! Show SAM your red and blue things.') }}>📷 Snap again</button>}
     {ready && <><p className="ask">Which color has more?</p><div className="row"><button className="btn redBtn" onClick={() => answer('red')}>Red ({shownRed})</button><button className="btn blueBtn" onClick={() => answer('blue')}>Blue ({shownBlue})</button>{counts && counts.red === counts.blue && <button className="btn" onClick={() => { pop(720); setMsg('Yes! They are the same!'); speak('Yes! They are the same!'); setTimeout(next, 900) }}>They're the same!</button>}</div></>}
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -301,7 +301,7 @@ function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null;
     if (n === answer) { setSliced(new Set([i])); pop(820); setMsg('Slice! You found it!'); speak('Slice! You found it!'); setTimeout(next, 1000) }
     else { pop(200); setMsg(`That one says ${n}. Good try — find ${answer}! ${name} believes in you.`); speak(`That one says ${n}. Find ${answer}!`) }
   }
-  return (<section className="panel"><h1>Fruit Slice Grove</h1><p className="roundBadge">Round {round} of {totalRounds}</p>
+  return (<section className="panel"><h1>Nightstand Slice</h1><GameTop round={round} total={totalRounds} onBack={onBack} />
     <Companion name={name} img={img} msg={msg} />
     <p className="ask">{problem.a} + {problem.b} = ?</p>
     {!photo && <><CameraSnap onSnap={onSnap} /><p className="note">No toys handy?</p><button className="btn" onClick={() => { setPhoto('sprite'); setLabels(spriteLabels()) }}>🍎 Play with sprite fruit</button>
@@ -314,10 +314,13 @@ function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null;
         onPointerDown={() => { dragging.current = true; slice(l.n, i) }} onPointerEnter={() => dragging.current && slice(l.n, i)}>{sliced.has(i) ? '✂️' : '🍎'} {l.n}</button>)}
     </div>}
     {photo && !busy && labels.length > 0 && <button className="btn ghost" onClick={() => { setPhoto(null); setLabels([]); setMsg('New photo! Put toys on the table and snap.') }}>📷 New table photo</button>}
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
-function Rounds({ round, total }: { round: number; total: number }) { return <p className="roundBadge">Round {round} of {total}</p> }
+function Rounds({ round, total }: { round: number; total: number }) { return <div className="segBar" aria-label={`Round ${round} of ${total}`}>{Array.from({ length: total }, (_, i) => <span key={i} className={`seg ${i < round ? 'segOn' : ''}`} />)}</div> }
+function GameTop({ round, total, onBack }: { round?: number; total?: number; onBack: () => void }) {
+  return <div className="gameTop"><button className="xBtn" onClick={onBack} aria-label="Back to map">✕</button>{total ? <Rounds round={round || 1} total={total} /> : <span />}</div>
+}
 
 function ShowMe({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
   const total = 3; const [round, setRound] = useState(1); const [target, setTarget] = useState(() => 3 + Math.floor(Math.random() * 6))
@@ -327,13 +330,13 @@ function ShowMe({ name, img, onWin, onBack }: { name: string; img: string | null
   const next = () => { if (round >= total) onWin(); else { setRound(r => r + 1); setTarget(3 + Math.floor(Math.random() * 6)); setPicked(new Set()); setPhotoCount(null) } }
   const check = (n: number) => { if (n === target) { pop(740); speak(`Yes! That is ${target}!`); setTimeout(next, 800) } else { pop(210); setMsg(n < target ? `That is ${n}. ${name} needs a few more!` : `That is ${n}. A few too many — tap one off!`); speak(n < target ? 'A few more!' : 'A few too many!') } }
   const onSnap = async (d: string) => { setMsg('SAM is counting your toys...'); try { let j = await sam('toy', d); if (!j.count) j = await sam('block', d); setPhotoCount(j.count ?? 0); if ((j.count ?? 0) > 0) check(j.count) } catch { setMsg('SAM is resting — tap blocks still works!') } }
-  return (<section className="panel"><h1>Show Me Hill</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+  return (<section className="panel"><h1>Bookshelf Heights</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     <p className="ask">Show me {target}!</p>
     <div className="blocks">{Array.from({ length: 12 }, (_, i) => <button key={i} className={`block pick ${picked.has(i) ? 'picked' : ''}`} onClick={() => { const s = new Set(picked); s.has(i) ? s.delete(i) : s.add(i); setPicked(s); pop(420 + i * 30) }}>{picked.has(i) ? picked.size : ''}</button>)}</div>
     <p className="note">You are showing: <strong>{picked.size}</strong></p>
     <div className="row"><button className="btn big" onClick={() => check(picked.size)}>Check!</button></div>
     <CameraSnap onSnap={onSnap} />{photoCount !== null && <p className="cheer">SAM counted {photoCount} in your photo.</p>}
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 function BuildNumber({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -344,10 +347,10 @@ function BuildNumber({ name, img, onWin, onBack }: { name: string; img: string |
   useEffect(() => { speak(`Build the number ${goal}! Pick fruit that add up to ${goal}.`) }, [round])
   const toggle = (i: number) => { const s = new Set(picked); s.has(i) ? s.delete(i) : s.add(i); setPicked(s); pop(500) }
   const check = () => { if (sum === goal) { pop(760); speak(`You built ${goal}!`); if (round >= total) setTimeout(onWin, 800); else { setRound(r => r + 1); setPicked(new Set()); setOpts(deal()); setMsg(`Round ${round + 1} — build ${goal} another way!`) } } else { pop(210); setMsg(sum < goal ? `That is ${sum}. Add a little more fruit!` : `That is ${sum}. Too much — tap a fruit to put it back!`); speak(sum < goal ? 'Add a little more!' : 'Too much!') } }
-  return (<section className="panel"><h1>Build-a-Number Bridge</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+  return (<section className="panel"><h1>Build-a-Number Bed</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     <p className="ask">Build {goal}: {sum} so far</p>
     <div className="grove">{opts.map((n, i) => <button key={i} className={`fruit ${picked.has(i) ? 'sliced' : ''}`} onClick={() => toggle(i)}>🍎 {n}</button>)}</div>
-    <button className="btn big" onClick={check}>Check!</button><br /><button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    <button className="btn big" onClick={check}>Check!</button><br /></section>)
 }
 
 function Balance({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -356,10 +359,10 @@ function Balance({ name, img, onWin, onBack }: { name: string; img: string | nul
   useEffect(() => { speak('Which side has more blocks?') }, [round])
   const pick = (side: 'l' | 'r') => { const truth = sides.l > sides.r ? 'l' : 'r'; if (side === truth) { pop(740); speak('Yes! That side has more!'); if (round >= total) setTimeout(onWin, 800); else { setRound(r2 => r2 + 1); const l = 1 + Math.floor(Math.random() * 8); let r = 1 + Math.floor(Math.random() * 8); if (r === l) r += 1; setSides({ l, r }); setMsg(`Round ${round + 1} — which side has more?`) } } else { pop(210); setMsg(`Good looking! Count each side slowly, one by one.`); speak('Good looking! Count each side slowly.') } }
   const pile = (n: number) => <div className="pile">{Array.from({ length: n }, (_, i) => <span key={i} className="miniBlock" />)}</div>
-  return (<section className="panel"><h1>Balance Falls</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+  return (<section className="panel"><h1>Lamp Balance</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     <div className="balanceRow"><button className="side" onClick={() => pick('l')}>{pile(sides.l)}<span>{sides.l}</span></button><div className="vs">⚖️</div><button className="side" onClick={() => pick('r')}>{pile(sides.r)}<span>{sides.r}</span></button></div>
     <p className="note">Tap the side with more blocks. No wrong turns — just count again!</p>
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 function HomeTree({ name, img, doneCount, total, onWin, onBack }: { name: string; img: string | null; doneCount: number; total: number; onWin: () => void; onBack: () => void }) {
@@ -367,7 +370,7 @@ function HomeTree({ name, img, doneCount, total, onWin, onBack }: { name: string
   return (<section className="panel"><h1>The Warm Lamp</h1><Companion name={name} img={img} msg={ready ? `We made it home! Thank you for counting, slicing, showing, building and balancing with me!` : `The Home Tree is waiting! Finish ${total - 1 - doneCount} more stop${total - 1 - doneCount === 1 ? '' : 's'} on the trail and ${name} can come home.`} />
     <div className="homeTree">🛋️</div>
     {ready ? <><p className="ask">{name} is home!</p><button className="btn big" onClick={onWin}>🎉 Celebrate the rescue!</button></> : <button className="btn" onClick={onBack}>Back to the trail — adventure awaits!</button>}
-    <br /><button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    <br /></section>)
 }
 
 function Confetti() {
@@ -391,14 +394,14 @@ function Estimate({ name, img, onWin, onBack }: { name: string; img: string | nu
   useEffect(() => { speak('How many do you think are in the jar? Make a guess!') }, [round])
   const reveal = (n: number) => { setReal(n); const d = Math.abs(n - (guess ?? 0)); setTimeout(() => { if (round >= total) onWin(); else { setRound(r => r + 1); setGuess(null); setReal(null); setUsePile(true); setMsg(`Round ${round + 1}! New jar — guess first!`) } }, 2600); setMsg(d === 0 ? `WOW! Exactly ${n}! You are an estimation star!` : d <= 2 ? `So close! There are ${n}. Great estimating!` : `There are ${n}! Estimating takes practice — ${name} loves your guess!`); speak(`There are ${n}!`) }
   const onSnap = async (d: string) => { if (guess === null) { setMsg('Guess first! Tap a number, then snap.'); return } setBusy(true); setMsg('SAM is counting the real jar...'); try { let j = await sam('toy', d); for (const w of ['block', 'ball', 'cup', 'banana']) { if (j.count) break; j = await sam(w, d) } if (j.count) { setUsePile(false); reveal(j.count) } else setMsg('SAM could not count that photo. Try spreading the toys out — or use the jar below!') } catch { setMsg('SAM is resting — count the jar below together!') } setBusy(false) }
-  return (<section className="panel"><h1>Estimation Jar</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+  return (<section className="panel"><h1>Toy Jar Corner</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     {usePile && <div className="jar">{Array.from({ length: pile }, (_, i) => <span key={i} className="jarBall" style={{ background: ['#e53935', '#1e88e5', '#43a047', '#fb8c00'][i % 4] }} />)}</div>}
     {real !== null ? <p className="ask">There are {real}!</p> : <>
       <p className="note">Your guess: <strong>{guess ?? '?'}</strong></p>
       <div className="row">{[2, 4, 6, 8, 10, 12].map(n => <button key={n} className={`btn ${guess === n ? '' : 'ghost'}`} onClick={() => { setGuess(n); pop(440 + n * 30) }}>{n}</button>)}</div>
       {usePile && guess !== null && <button className="btn big" onClick={() => reveal(pile)}>Count them for real!</button>}
       <p className="note">With real toys: guess, then snap — SAM counts your jar.</p><CameraSnap onSnap={onSnap} />{busy && <p className="cheer">SAM is counting…</p>}</>}
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 function PatternCopy({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -408,11 +411,11 @@ function PatternCopy({ name, img, onWin, onBack }: { name: string; img: string |
   useEffect(() => { speak('Copy the pattern!') }, [round])
   const tap = (c: string) => { const next = [...mine, c]; setMine(next); pop(c === 'red' ? 500 : c === 'blue' ? 400 : 600); if (next.length === pattern.length) { if (next.every((v, i) => v === pattern[i])) { speak('You copied the pattern!'); setTimeout(() => { if (round >= total) onWin(); else { setRound(r => r + 1); setPattern(deal()); setMine([]); setMsg(`Round ${round + 1} — new pattern!`) } }, 900) } else { setMsg(`So close! Watch the colors again and start over. ${name} believes in you!`); speak('So close! Try again.'); setTimeout(() => setMine([]), 800) } } }
   const row = (arr: string[], onTap?: (c: string) => void) => <div className="blocks">{arr.map((c, i) => <button key={i} className={`block ${c}`} onClick={() => onTap?.(c)} aria-label={`${c} block`}>{c === 'green' ? '🟢' : ''}</button>)}</div>
-  return (<section className="panel"><h1>Pattern Path</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+  return (<section className="panel"><h1>Rug Pattern Path</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     <p className="note">Copy this pattern:</p>{row(pattern)}
     <p className="note">Your pattern:</p>{mine.length ? row(mine) : <p className="cheer">Tap colors below…</p>}
     <div className="row"><button className="btn redBtn" onClick={() => tap('red')}>Red</button><button className="btn blueBtn" onClick={() => tap('blue')}>Blue</button><button className="btn" onClick={() => tap('green')}>Green</button><button className="btn ghost" onClick={() => setMine([])}>Start over</button></div>
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 function HandBlade({ onSliceAt }: { sliced: Set<number>; onSliceAt: (clientX: number, clientY: number) => void }) {
@@ -463,7 +466,7 @@ function Hunt({ name, img, onWin, onBack }: { name: string; img: string | null; 
     if (left.length) speak(`Still hiding: ${left.join(', ')}`)
   }
   const allBoxes = items.flatMap(item => (found[item] || []).map(b => ({ b, item })))
-  return (<section className="panel"><h1>SAM Scavenger Hunt</h1><p className="roundBadge">Found {foundCount} of {items.length}</p>
+  return (<section className="panel"><h1>SAM Scavenger Hunt</h1><GameTop onBack={onBack} /><GameTop round={Math.min(foundCount + 1, items.length)} total={items.length} onBack={onBack} /><p className="caughtLine">Found {foundCount} of {items.length}</p>
     <Companion name={name} img={img} msg={msg} />
     <div className="huntList">{items.map(i => <span key={i} className={`chip ${found[i] ? 'foundChip' : 'hideChip'}`}>{found[i] ? '★' : '🔍'} {i}</span>)}</div>
     {!photo && <CameraSnap onSnap={onSnap} />}
@@ -471,7 +474,7 @@ function Hunt({ name, img, onWin, onBack }: { name: string; img: string | null; 
     {busy && <p className="cheer">SAM is hunting…</p>}
     {photo && !busy && foundCount < items.length && <button className="btn" onClick={() => { setPhoto(null); setMsg('New photo! Show SAM where the hiding things are.') }}>📷 Snap again</button>}
     <p className="note">This only works because SAM 3.1 understands words: tell it "banana" and it finds the banana's exact pixels.</p>
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 function Spotlight({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -492,7 +495,7 @@ function Spotlight({ name, img, onWin, onBack }: { name: string; img: string | n
     if (hits >= 3) { setMsg(`SAM followed your ${word} in ${hits} of 5 photos! Spotlight star!`); speak('SAM followed your toy!'); setTimeout(onWin, 3200) }
     else { setMsg(`SAM spotted it in ${hits} of 5 photos. Big, slow moves in good light help SAM follow! Try again.`); speak('Try again with big slow moves!') }
   }
-  return (<section className="panel"><h1>SAM Spotlight</h1><Companion name={name} img={img} msg={msg} />
+  return (<section className="panel"><h1>SAM Spotlight</h1><GameTop onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     <label className="nameRow">SAM hunts for a… <input value={word} onChange={e => setWord(e.target.value)} maxLength={24} /></label>
     {phase === 'idle' && <button className="btn big" onClick={start}>📷 Turn on the camera</button>}
     {err && <p className="note">{err}</p>}
@@ -501,7 +504,7 @@ function Spotlight({ name, img, onWin, onBack }: { name: string; img: string | n
     {frames.length > 0 && <div className="filmstrip">{frames.map((f, i) => <div key={i} className="filmFrame"><div className="visionWrap"><img src={f.src} alt={`Spotlight photo ${i + 1}`} />{f.boxes.map((b, j) => <div key={j} className="visionBox huntBox" style={{ left: `${b.x1 / b.frameW * 100}%`, top: `${b.y1 / b.frameH * 100}%`, width: `${(b.x2 - b.x1) / b.frameW * 100}%`, height: `${(b.y2 - b.y1) / b.frameH * 100}%` }}>{word}</div>)}</div><span>{f.boxes.length ? '★ SAM sees it!' : 'SAM missed it'}</span></div>)}</div>}
     {phase === 'done' && <button className="btn" onClick={() => { setPhase('idle'); setFrames([]) }}>Try again</button>}
     <p className="note">SAM 3.1 can track the same thing from photo to photo. Green outlines show every spot where SAM found it.</p>
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 function CatchGame({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -518,14 +521,14 @@ function CatchGame({ name, img, onWin, onBack }: { name: string; img: string | n
   }, [])
   const basketXRef = useRef(50); basketXRef.current = basketX
   const move = (e: React.PointerEvent<HTMLDivElement>) => { const r = e.currentTarget.getBoundingClientRect(); setBasketX(Math.min(92, Math.max(8, (e.clientX - r.left) / r.width * 100))) }
-  return (<section className="panel"><h1>Catch Grove</h1><p className="roundBadge">Caught {caught} of {need}</p><Companion name={name} img={img} msg={msg} />
+  return (<section className="panel"><h1>Catch Grove</h1><GameTop round={Math.min(caught + 1, need)} total={need} onBack={onBack} /><p className="caughtLine">Caught {caught} of {need} 🧺</p><Companion name={name} img={img} msg={msg} />
     <p className="ask">{problem.a} + {problem.b} = ?</p>
     <div className="catchStage" onPointerMove={move} onPointerDown={move}>
       {fruits.map(f => <div key={f.id} className="fallFruit" style={{ left: `${f.x}%`, top: `${f.y}%` }}>🍎<span>{f.n}</span></div>)}
       <div className="basket" style={{ left: `${basketX}%` }}>🧺</div>
     </div>
     <p className="note">Wrong fruit just bounces away — no losing, just catching!</p>
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 function SortSize({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -545,14 +548,14 @@ function SortSize({ name, img, onWin, onBack }: { name: string; img: string | nu
     if (origIdx === targetIdx) { pop(600 + step * 60); const n = step + 1; setStep(n); if (n >= objs.length) { setMsg('You sorted them all — biggest to smallest!'); setTimeout(onWin, 900) } else setMsg(`Yes! Now the next biggest.`) }
     else { pop(210); setMsg(`That one is not the biggest left. Look for the widest, tallest toy!`); speak('Look for the biggest one left!') }
   }
-  return (<section className="panel"><h1>Big &amp; Small Shelf</h1><Companion name={name} img={img} msg={msg} />
+  return (<section className="panel"><h1>Big &amp; Small Shelf</h1><GameTop onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     {!photo && <CameraSnap onSnap={onSnap} />}
     {busy && <p className="cheer">SAM is measuring…</p>}
     {photo && objs.length > 0 && <div className="visionWrap"><img src={photo} alt="Toys to sort" className="tablePhoto" />
       {objs.map((o, i) => { const doneOrder = sorted.slice(0, step).indexOf(o); return <button key={i} className={`visionBox sortBox ${doneOrder >= 0 ? 'sortedBox' : ''}`} style={{ left: `${o.b.x1 / o.b.frameW * 100}%`, top: `${o.b.y1 / o.b.frameH * 100}%`, width: `${(o.b.x2 - o.b.x1) / o.b.frameW * 100}%`, height: `${(o.b.y2 - o.b.y1) / o.b.frameH * 100}%` }} onClick={() => tap(i)}>{doneOrder >= 0 ? `#${doneOrder + 1}` : 'tap me'}</button> })}</div>}
     {photo && !busy && <button className="btn" onClick={() => { setPhoto(null); setObjs([]); setStep(0) }}>📷 New photo</button>}
     <p className="note">SAM measures the exact pixels of each toy — that is how it knows which is biggest!</p>
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 function Fingers({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -573,12 +576,12 @@ function Fingers({ name, img, onWin, onBack }: { name: string; img: string | nul
     return () => { dead = true; cancelAnimationFrame(raf); stream?.getTracks().forEach(tr => tr.stop()); try { lm?.close() } catch {} }
   }, [])
   useEffect(() => { if (count === target && target > 0) { hold.current++; if (hold.current === 45) { pop(760); speak(`Yes! ${target} fingers!`); if (round >= total) setTimeout(onWin, 700); else { setRound(r => r + 1); setTarget(2 + Math.floor(Math.random() * 8)) } } } else hold.current = 0 }, [count])
-  return (<section className="panel"><h1>Finger Meadow</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+  return (<section className="panel"><h1>Finger Meadow</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     <p className="ask">Show me {target}!</p><video ref={video} autoPlay playsInline muted className="camVideo fingerCam" />
     <p className="fingerCount">{count} 🖐️</p>{err && <p className="note">{err}</p>}
     {err && <div className="row">{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <button key={n} className="btn ghost" onClick={() => setCount(n)}>{n}</button>)}</div>}
     <p className="note">Hold your fingers still — when the number matches, it counts!</p>
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 function Mischief({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -606,12 +609,12 @@ function Mischief({ name, img, onWin, onBack }: { name: string; img: string | nu
     if (i === clue.idx) { pop(740); setFoundIdx(i); speak('You found the mischief!'); if (round >= total) setTimeout(onWin, 1200); else setTimeout(() => { setRound(r => r + 1); setPhoto(null); setObjs([]); setClue(null); setFoundIdx(null); setMsg(`Round ${round + 1}: hide the toys again!`) }, 1200) }
     else { pop(210); setMsg(`Not that one — the clue was ${clue.text}. Look again!`); speak('Not that one. Look again!') }
   }
-  return (<section className="panel"><h1>Find the Mischief</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+  return (<section className="panel"><h1>Find the Mischief</h1><GameTop onBack={onBack} /><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
     {!photo && <CameraSnap onSnap={onSnap} />}{busy && <p className="cheer">SAM is peeking…</p>}
     {photo && objs.length > 0 && <div className="visionWrap"><img src={photo} alt="Toys with a mischief hiding" className="tablePhoto" />
       {objs.map((b, i) => <button key={i} className={`visionBox sortBox ${foundIdx === i ? 'sortedBox' : ''}`} style={{ left: `${b.x1 / b.frameW * 100}%`, top: `${b.y1 / b.frameH * 100}%`, width: `${(b.x2 - b.x1) / b.frameW * 100}%`, height: `${(b.y2 - b.y1) / b.frameH * 100}%` }} onClick={() => tap(i)}>{foundIdx === i ? '😈★' : '?'}</button>)}</div>}
     {photo && !busy && !clue && <button className="btn" onClick={() => { setPhoto(null) }}>📷 New photo</button>}
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
 
 const DOOR_FALLBACK = [
@@ -629,10 +632,10 @@ function StoryDoors({ name, img, onWin, onBack }: { name: string; img: string | 
   useEffect(() => { load(1, []) }, [])
   useEffect(() => { if (scene) speak(`${name} ${scene.scene}. Which way? ${scene.a}, or ${scene.b}?`) }, [scene])
   const pick = (choice: string) => { pop(620); const prev = [...picked, choice]; setPicked(prev); if (chapter >= total) { speak(`${name} made it! What an adventure you chose!`); setTimeout(onWin, 1000) } else { setChapter(c => c + 1); load(chapter + 1, prev) } }
-  return (<section className="panel"><h1>Story Doors</h1><p className="roundBadge">Chapter {Math.min(chapter, total)} of {total}</p>
+  return (<section className="panel"><h1>Story Doors</h1><GameTop round={Math.min(chapter, total)} total={total} onBack={onBack} />
     <Companion name={name} img={img} msg={picked.length ? `You chose: ${picked.join(' → ')}` : `${name}'s story is yours to steer. There are no wrong doors!`} />
     {loading && <p className="cheer">Muse Spark is writing the next page…</p>}
     {scene && <><p className="story storyScene">{name} {scene.scene}</p><p className="ask">Which way, storyteller?</p>
       <div className="doorRow"><button className="btn doorBtn" onClick={() => pick(scene.a)}>🚪 {scene.a}</button><button className="btn doorBtn alt" onClick={() => pick(scene.b)}>🚪 {scene.b}</button></div></>}
-    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+    </section>)
 }
