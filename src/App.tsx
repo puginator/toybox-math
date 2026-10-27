@@ -27,18 +27,40 @@ export default function App() {
   const win = (game: string) => { setStars(s => s + 1); pop(760); speak(`You did it! ${name} is so proud of you!`); setScreen('celebrate'); if (game === 'ninja' && !stuffy.hat) setStuffy(s => ({ ...s, hat: true })) }
 
   const onUpload = async (f: File) => {
-    const dataUrl = await new Promise<string>(res => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(f) })
-    setStuffy(s => ({ ...s, img: dataUrl })); speak('What a wonderful stuffy! SAM is looking at your friend.')
+    setSamStatus('Looking at your stuffy...')
+    // Downscale first: phone photos are multi-MB and slow/oversized for the API.
+    const bmp = await createImageBitmap(f).catch(() => null)
+    if (!bmp) { setSamStatus('That photo would not open - try another one.'); return }
+    const scale = Math.min(1, 1024 / Math.max(bmp.width, bmp.height))
+    const c0 = document.createElement('canvas'); c0.width = Math.round(bmp.width * scale); c0.height = Math.round(bmp.height * scale)
+    c0.getContext('2d')!.drawImage(bmp, 0, 0, c0.width, c0.height)
+    const dataUrl = c0.toDataURL('image/jpeg', 0.85)
+    setStuffy(s => ({ ...s, img: dataUrl })); speak('What a wonderful stuffy! SAM is cutting out your friend.')
+    setSamStatus('SAM 3.1 is cutting out your stuffy...')
     try {
-      const r = await fetch('/api/sam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: 'stuffed animal', imageDataUrl: dataUrl }) })
+      const r = await fetch('/api/sam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: 'stuffed animal toy', imageDataUrl: dataUrl }) })
       const j = await r.json()
-      if (j.boxes?.[0]) {
-        const b = j.boxes[0]; const img = new Image(); img.onload = () => {
-          const c = document.createElement('canvas'); c.width = Math.max(1, (b.x2 - b.x1) / 1000 * img.width); c.height = Math.max(1, (b.y2 - b.y1) / 1000 * img.height)
-          c.getContext('2d')!.drawImage(img, b.x1 / 1000 * img.width, b.y1 / 1000 * img.height, c.width, c.height, 0, 0, c.width, c.height)
-          setStuffy(s => ({ ...s, img: c.toDataURL() })); setSamStatus(`SAM 3.1 found your stuffy in ${j.ms}ms and cropped it out!`); speak('SAM found your stuffy!')
-        }; img.src = dataUrl
-      } else setSamStatus('SAM did not spot a stuffy in that photo - showing the whole photo instead.')
+      const img = new Image()
+      img.onload = () => {
+        // Pair the largest box with its mask (records arrive box-then-mask, in order).
+        let bi = 0, best = -1; (j.boxes || []).forEach((b: any, i: number) => { const a = (b.x2 - b.x1) * (b.y2 - b.y1); if (a > best) { best = a; bi = i } })
+        const b = j.boxes?.[bi]; const mask = j.masks?.[bi]
+        if (!b) { setSamStatus('SAM could not spot a stuffy in that photo. Try a clearer photo with your stuffy in the middle!'); return }
+        const sx = img.width / (b.frameW || img.width), sy = img.height / (b.frameH || img.height)
+        const out = document.createElement('canvas'); out.width = Math.max(1, Math.round((b.x2 - b.x1) * sx)); out.height = Math.max(1, Math.round((b.y2 - b.y1) * sy))
+        const ctx = out.getContext('2d')!; ctx.drawImage(img, b.x1 * sx, b.y1 * sy, out.width, out.height, 0, 0, out.width, out.height)
+        if (mask?.rasterB64) {
+          // True cutout: SAM mask becomes the alpha channel, background goes transparent.
+          const raw = Uint8Array.from(atob(mask.rasterB64), ch => ch.charCodeAt(0))
+          const mc = document.createElement('canvas'); mc.width = mask.width; mc.height = mask.height
+          const mctx = mc.getContext('2d')!; const id = mctx.createImageData(mask.width, mask.height)
+          for (let i = 0; i < raw.length; i++) { id.data[i * 4 + 3] = raw[i] ? 255 : 0 }
+          mctx.putImageData(id, 0, 0)
+          ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(mc, 0, 0, out.width, out.height); ctx.globalCompositeOperation = 'source-over'
+          setSamStatus(`SAM 3.1 cut out your stuffy in ${j.ms}ms!`); speak('SAM cut out your stuffy! Look, no background!')
+        } else setSamStatus('SAM found your stuffy but sent no outline - showing a cropped photo.')
+        setStuffy(s => ({ ...s, img: out.toDataURL('image/png') }))
+      }; img.src = dataUrl
     } catch { setSamStatus('SAM is resting - showing your whole photo. The games still work!') }
   }
 
