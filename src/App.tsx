@@ -221,7 +221,7 @@ function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null;
     try {
       const [r, b] = await Promise.all([sam('red object', d), sam('blue object', d)])
       if ((r.count || 0) + (b.count || 0) === 0) { setMsg('SAM could not see red or blue things. Spread them out, give them space, and snap again!'); setBusy(false); return }
-      if (r.count === b.count && r.count > 0) setMsg(`SAM counted ${r.count} red and ${b.count} blue — they are the same!`); setCounts({ red: r.count, blue: b.count }); setVision([...(r.boxes || []).map((x: any) => ({ b: x, color: '#e53935' })), ...(b.boxes || []).map((x: any) => ({ b: x, color: '#1e88e5' }))]); setMsg(`SAM counted ${r.count} red and ${b.count} blue! See SAM's outlines? Which color has more?`)
+      setCounts({ red: r.count, blue: b.count }); setVision([...(r.boxes || []).map((x: any) => ({ b: x, color: '#e53935' })), ...(b.boxes || []).map((x: any) => ({ b: x, color: '#1e88e5' }))]); setMsg(r.count === b.count && r.count > 0 ? `SAM counted ${r.count} red and ${b.count} blue — they are the same! Tap "They're the same!"` : `SAM counted ${r.count} red and ${b.count} blue! See SAM's outlines? Which color has more?`)
       speak(`SAM counted ${r.count} red and ${b.count} blue. Which color has more?`)
     } catch { setMsg('SAM is resting. Play this round with the tap blocks below!') }
     setBusy(false)
