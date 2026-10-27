@@ -133,10 +133,10 @@ function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null;
   const [photo, setPhoto] = useState<string | null>(null); const [busy, setBusy] = useState(false)
   const [counts, setCounts] = useState<{ red: number; blue: number } | null>(null)
   const [tapped, setTapped] = useState<Set<string>>(new Set())
-  const [blocksRound] = useState(() => ({ red: 2 + Math.floor(Math.random() * 3), blue: 3 + Math.floor(Math.random() * 2) }))
-  const blocks = useMemo(() => [...Array(blocksRound.red).fill('red'), ...Array(blocksRound.blue).fill('blue')].map((c, i) => ({ c, id: `${c}-${i}` })), [round])
+  const [blocksRound, setBlocksRound] = useState(() => { const red = 2 + Math.floor(Math.random() * 4); let blue = 1 + Math.floor(Math.random() * 5); if (blue === red) blue += 1; return { red, blue } })
+  const blocks = useMemo(() => [...Array(blocksRound.red).fill('red'), ...Array(blocksRound.blue).fill('blue')].map((c, i) => ({ c, id: `${c}-${i}` })), [blocksRound])
   useEffect(() => { speak(msg) }, [round])
-  const next = () => { if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setCounts(null); setTapped(new Set()); setMsg(`Round ${round + 1}! Show me red and blue things again — SAM will count them.`) } }
+  const next = () => { if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setCounts(null); setTapped(new Set()); const red = 2 + Math.floor(Math.random() * 4); let blue = 1 + Math.floor(Math.random() * 5); if (blue === red) blue += 1; setBlocksRound({ red, blue }); setMsg(`Round ${round + 1}! Show me red and blue things again — SAM will count them.`) } }
   const onSnap = async (d: string) => {
     setPhoto(d); setBusy(true); setMsg('SAM is counting your red and blue things...')
     try {
@@ -179,7 +179,7 @@ function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null;
   const answer = problem.a + problem.b
   useEffect(() => { speak(`What is ${problem.a} plus ${problem.b}? Slice the fruit with that number!`) }, [problem])
   const newProblem = () => setProblem({ a: 3 + Math.floor(Math.random() * 6), b: 2 + Math.floor(Math.random() * 6) })
-  const next = () => { if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setLabels([]); setSliced(new Set()); newProblem(); setMsg(`Round ${round + 1}! New table, new problem. Snap your toys!`) } }
+  const next = () => { if (round >= totalRounds) onWin(); else { const np = { a: 3 + Math.floor(Math.random() * 6), b: 2 + Math.floor(Math.random() * 6) }; setRound(r => r + 1); setSliced(new Set()); setProblem(np); if (photo === 'sprite') { const ans = np.a + np.b; const opts = [...new Set([ans, ans + 2, ans - 1, ans + 4])]; setLabels(opts.map((n, i) => ({ n, x: 6 + i * 24, y: 30 + (i % 2) * 28, w: 20, h: 26 }))); setMsg(`Round ${round + 1}! Slice the answer!`) } else { setPhoto(null); setLabels([]); setMsg(`Round ${round + 1}! New table, new problem. Snap your toys!`) } } }
   const spriteLabels = () => { const opts = [...new Set([answer, answer + 2, answer - 1, answer + 4])]; return opts.map((n, i) => ({ n, x: 6 + i * 24, y: 30 + (i % 2) * 28, w: 20, h: 26 })) }
   const onSnap = async (d: string) => {
     setPhoto(d); setBusy(true); setMsg('SAM is finding your toys...')
