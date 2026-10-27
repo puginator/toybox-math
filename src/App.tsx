@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { IconBalance, IconBuild, IconCount, IconHunt, IconJar, IconLamp, IconPattern, IconShow, IconSlice } from './icons'
 
 type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'estimate' | 'pattern' | 'hunt' | 'home_tree' | 'celebrate'
 type Stuffy = { name: string; img: string | null; hat: boolean; cape?: boolean; glasses?: boolean }
+const STOP_ICONS: Record<string, () => JSX.Element> = { ratio: IconCount, ninja: IconSlice, showme: IconShow, build: IconBuild, balance: IconBalance, estimate: IconJar, pattern: IconPattern, hunt: IconHunt, home_tree: IconLamp }
 const STOPS = [
-  { id: 'ratio', label: 'Counting Meadow', sub: 'Ratio counting', prize: '' },
-  { id: 'ninja', label: 'Fruit Slice Grove', sub: 'Fruit Ninja math', prize: 'hat' },
-  { id: 'showme', label: 'Show Me Hill', sub: 'Show the number', prize: '' },
-  { id: 'build', label: 'Build-a-Number Bridge', sub: 'Make 10', prize: 'glasses' },
-  { id: 'balance', label: 'Balance Falls', sub: 'Which side has more?', prize: '' },
-  { id: 'estimate', label: 'Estimation Jar', sub: 'Guess, then SAM counts', prize: '' },
-  { id: 'pattern', label: 'Pattern Path', sub: 'Copy the pattern', prize: '' },
+  { id: 'ratio', label: 'Dresser Drawer', sub: 'Counting blocks', prize: '' },
+  { id: 'ninja', label: 'Nightstand Slice', sub: 'Fruit Ninja math', prize: 'hat' },
+  { id: 'showme', label: 'Bookshelf Heights', sub: 'Show the number', prize: '' },
+  { id: 'build', label: 'Build-a-Number Bed', sub: 'Make 10', prize: 'glasses' },
+  { id: 'balance', label: 'Lamp Balance', sub: 'Which side has more?', prize: '' },
+  { id: 'estimate', label: 'Toy Jar Corner', sub: 'Guess, then SAM counts', prize: '' },
+  { id: 'pattern', label: 'Rug Pattern Path', sub: 'Copy the pattern', prize: '' },
   { id: 'hunt', label: 'SAM Scavenger Hunt', sub: 'SAM finds hidden things', prize: '' },
-  { id: 'home_tree', label: 'Home Tree', sub: 'The rescue finale', prize: 'cape' },
+  { id: 'home_tree', label: 'The Warm Lamp', sub: 'Home, at last', prize: 'cape' },
 ] as const
-const FALLBACK_STORY = (n: string) => `${n} is lost in the Toybox Forest! Follow the trail, play the counting games, and help ${n} find the way home. Every game you finish earns a star.`
+const FALLBACK_STORY = (n: string) => `${n} is lost in the bedroom after lights-out! Cross the nightstand, climb the bookshelf, and follow the warm lamp home. Every stop you finish earns a star.`
 
 function speak(text: string) {
   try { const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; speechSynthesis.cancel(); speechSynthesis.speak(u) } catch {}
@@ -128,12 +130,16 @@ export default function App() {
 
       {screen === 'trail' && (
         <section className="panel">
-          <h1>The Toybox Trail</h1><p className="story">{story || FALLBACK_STORY(name)}</p>{story && <p className="note">Story by Muse Spark</p>}
+          <h1>The Nightstand Adventure</h1><p className="story">{story || FALLBACK_STORY(name)}</p>{story && <p className="note">Story by Muse Spark</p>}
           <div className="rescueBar"><div className="rescueFill" style={{ width: `${Math.round(done.length / STOPS.length * 100)}%` }} /></div>
           <p className="note">Rescue journey: {done.length} of {STOPS.length} stops — every stop brings {name} closer to home and recovers a piece of {name}'s portrait puzzle!</p>
-          <div className="trail">
-            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); return (
-              <div key={s.id}>{i > 0 && <div className="path" />}<button disabled={!unlocked} className={`stop ${isDone ? 'doneStop' : ''} ${!unlocked ? 'locked' : ''}`} onClick={() => setScreen(s.id as Screen)}><span>{isDone ? '★' : unlocked ? i + 1 : '🔒'}</span> {s.label}<small>{s.sub}{s.prize ? ` · prize: ${s.prize === 'hat' ? '🎩 hat' : s.prize === 'glasses' ? '🕶️ glasses' : '🦸 cape'}` : ''}</small></button></div>) })}
+          <div className="mapScene">
+            <svg className="mapPath" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M12 6 C 70 14, 88 22, 82 34 C 76 46, 20 44, 14 56 C 9 67, 78 68, 84 78 C 89 87, 45 92, 30 96" fill="none" stroke="#d7ad58" strokeWidth="1.8" strokeDasharray="4 3" strokeLinecap="round" /></svg>
+            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); const isNext = unlocked && !isDone; const Icon = STOP_ICONS[s.id]; const pos = [{ l: 4, t: 0 }, { l: 68, t: 10 }, { l: 66, t: 26 }, { l: 8, t: 34 }, { l: 6, t: 48 }, { l: 62, t: 55 }, { l: 66, t: 70 }, { l: 18, t: 76 }, { l: 28, t: 88 }][i]
+              return <button key={s.id} disabled={!unlocked} className={`mapStop ${isDone ? 'doneStop' : ''} ${isNext ? 'nextStop' : ''}`} style={{ left: `${pos.l}%`, top: `${pos.t}%` }} onClick={() => setScreen(s.id as Screen)}>
+                <span className="mapIcon"><Icon /></span><span className="mapLabel"><strong>{isDone ? '★ ' : !unlocked ? '🔒 ' : ''}{s.label}</strong><small>{s.sub}{s.prize ? ` · prize ${s.prize === 'hat' ? '🎩' : s.prize === 'glasses' ? '🕶️' : '🦸'}` : ''}</small></span>
+                {isNext && stuffy.img && <img className="mapBuddy" src={stuffy.img} alt={name} />}</button> })}
+            <div className="moon">🌙</div><div className="windowStars">✦ ✦ ✦</div>
           </div>
           <button className="btn ghost" onClick={() => setScreen('home')}>← Back to {name}</button>
         </section>
@@ -151,8 +157,8 @@ export default function App() {
 
       {screen === 'celebrate' && (
         <section className="panel celebrate"><Confetti /><div className="bigStar">★</div><h1>Great job!</h1>
-          <p>{name} cheers for you! {stuffy.cape ? `${name} earned the hero cape — the rescue is complete!` : 'Keep following the trail home!'}</p>
-          <button className="btn big" onClick={() => setScreen('trail')}>Back to the trail</button></section>
+          <p>{name} cheers for you! {stuffy.cape ? `${name} earned the hero cape — the rescue is complete!` : 'Keep crossing the bedroom!'}</p>
+          <button className="btn big" onClick={() => setScreen('trail')}>Back to the map</button></section>
       )}
       <footer>Ages 5–8 · Counting to 20 · No timers, no losing — just trying again</footer>
     </main>
@@ -168,7 +174,7 @@ function PortraitPuzzle({ name, img, done }: { name: string; img: string | null;
   return (<div className="puzzleBox"><p className="puzzleTitle">🧩 {name}'s Portrait Puzzle — {found} of 6 pieces found</p>
     <div className="puzzleGrid">{pieceStops.map((id, i) => { const got = done.includes(id); const col = i % 3, rowIdx = Math.floor(i / 3)
       return <div key={id} className={`puzzlePiece ${got ? 'got' : ''}`} style={got && img ? { backgroundImage: `url(${img})`, backgroundSize: '300% 200%', backgroundPosition: `${col * 50}% ${rowIdx * 100}%` } : undefined}>{!got && <span>?</span>}{got && !img && <span>🧸</span>}</div> })}
-    </div><p className="note">{found === 6 ? `${name}'s portrait is whole again!` : `Finish trail stops to recover the missing pieces!`}</p></div>)
+    </div><p className="note">{found === 6 ? `${name}'s portrait is whole again!` : `Finish map stops to recover the missing pieces!`}</p></div>)
 }
 async function sam(prompt: string, imageDataUrl: string) {
   const r = await fetch('/api/sam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, imageDataUrl }) })
@@ -227,7 +233,7 @@ function Ratio({ name, img, onWin, onBack }: { name: string; img: string | null;
       <div className="blocks">{blocks.map(b => <button key={b.id} className={`block ${b.c} ${tapped.has(b.id) ? 'counted' : ''}`} onClick={() => { setTapped(s => new Set(s).add(b.id)); pop(b.c === 'red' ? 500 : 380) }}>{tapped.has(b.id) ? '✓' : ''}</button>)}</div></>}
     {photo && !counts && !busy && <button className="btn" onClick={() => { setPhoto(null); setMsg('Okay, new photo! Show SAM your red and blue things.') }}>📷 Snap again</button>}
     {ready && <><p className="ask">Which color has more?</p><div className="row"><button className="btn redBtn" onClick={() => answer('red')}>Red ({shownRed})</button><button className="btn blueBtn" onClick={() => answer('blue')}>Blue ({shownBlue})</button></div></>}
-    <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
 
 function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -275,7 +281,7 @@ function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null;
         onPointerDown={() => { dragging.current = true; slice(l.n, i) }} onPointerEnter={() => dragging.current && slice(l.n, i)}>{sliced.has(i) ? '✂️' : '🍎'} {l.n}</button>)}
     </div>}
     {photo && !busy && labels.length > 0 && <button className="btn ghost" onClick={() => { setPhoto(null); setLabels([]); setMsg('New photo! Put toys on the table and snap.') }}>📷 New table photo</button>}
-    <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
 
 function Rounds({ round, total }: { round: number; total: number }) { return <p className="roundBadge">Round {round} of {total}</p> }
@@ -294,7 +300,7 @@ function ShowMe({ name, img, onWin, onBack }: { name: string; img: string | null
     <p className="note">You are showing: <strong>{picked.size}</strong></p>
     <div className="row"><button className="btn big" onClick={() => check(picked.size)}>Check!</button></div>
     <CameraSnap onSnap={onSnap} />{photoCount !== null && <p className="cheer">SAM counted {photoCount} in your photo.</p>}
-    <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
 
 function BuildNumber({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -308,7 +314,7 @@ function BuildNumber({ name, img, onWin, onBack }: { name: string; img: string |
   return (<section className="panel"><h1>Build-a-Number Bridge</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
     <p className="ask">Build {goal}: {sum} so far</p>
     <div className="grove">{opts.map((n, i) => <button key={i} className={`fruit ${picked.has(i) ? 'sliced' : ''}`} onClick={() => toggle(i)}>🍎 {n}</button>)}</div>
-    <button className="btn big" onClick={check}>Check!</button><br /><button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+    <button className="btn big" onClick={check}>Check!</button><br /><button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
 
 function Balance({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -320,15 +326,15 @@ function Balance({ name, img, onWin, onBack }: { name: string; img: string | nul
   return (<section className="panel"><h1>Balance Falls</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
     <div className="balanceRow"><button className="side" onClick={() => pick('l')}>{pile(sides.l)}<span>{sides.l}</span></button><div className="vs">⚖️</div><button className="side" onClick={() => pick('r')}>{pile(sides.r)}<span>{sides.r}</span></button></div>
     <p className="note">Tap the side with more blocks. No wrong turns — just count again!</p>
-    <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
 
 function HomeTree({ name, img, doneCount, total, onWin, onBack }: { name: string; img: string | null; doneCount: number; total: number; onWin: () => void; onBack: () => void }) {
   const ready = doneCount >= total - 1
-  return (<section className="panel"><h1>The Home Tree</h1><Companion name={name} img={img} msg={ready ? `We made it home! Thank you for counting, slicing, showing, building and balancing with me!` : `The Home Tree is waiting! Finish ${total - 1 - doneCount} more stop${total - 1 - doneCount === 1 ? '' : 's'} on the trail and ${name} can come home.`} />
-    <div className="homeTree">🌳</div>
+  return (<section className="panel"><h1>The Warm Lamp</h1><Companion name={name} img={img} msg={ready ? `We made it home! Thank you for counting, slicing, showing, building and balancing with me!` : `The Home Tree is waiting! Finish ${total - 1 - doneCount} more stop${total - 1 - doneCount === 1 ? '' : 's'} on the trail and ${name} can come home.`} />
+    <div className="homeTree">🛋️</div>
     {ready ? <><p className="ask">{name} is home!</p><button className="btn big" onClick={onWin}>🎉 Celebrate the rescue!</button></> : <button className="btn" onClick={onBack}>Back to the trail — adventure awaits!</button>}
-    <br /><button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+    <br /><button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
 
 function Confetti() {
@@ -359,7 +365,7 @@ function Estimate({ name, img, onWin, onBack }: { name: string; img: string | nu
       <div className="row">{[2, 4, 6, 8, 10, 12].map(n => <button key={n} className={`btn ${guess === n ? '' : 'ghost'}`} onClick={() => { setGuess(n); pop(440 + n * 30) }}>{n}</button>)}</div>
       {usePile && guess !== null && <button className="btn big" onClick={() => reveal(pile)}>Count them for real!</button>}
       <p className="note">With real toys: guess, then snap — SAM counts your jar.</p><CameraSnap onSnap={onSnap} />{busy && <p className="cheer">SAM is counting…</p>}</>}
-    <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
 
 function PatternCopy({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
@@ -373,7 +379,7 @@ function PatternCopy({ name, img, onWin, onBack }: { name: string; img: string |
     <p className="note">Copy this pattern:</p>{row(pattern)}
     <p className="note">Your pattern:</p>{mine.length ? row(mine) : <p className="cheer">Tap colors below…</p>}
     <div className="row"><button className="btn redBtn" onClick={() => tap('red')}>Red</button><button className="btn blueBtn" onClick={() => tap('blue')}>Blue</button><button className="btn" onClick={() => tap('green')}>Green</button><button className="btn ghost" onClick={() => setMine([])}>Start over</button></div>
-    <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
 
 function HandBlade({ onSliceAt }: { sliced: Set<number>; onSliceAt: (clientX: number, clientY: number) => void }) {
@@ -432,5 +438,5 @@ function Hunt({ name, img, onWin, onBack }: { name: string; img: string | null; 
     {busy && <p className="cheer">SAM is hunting…</p>}
     {photo && !busy && foundCount < items.length && <button className="btn" onClick={() => { setPhoto(null); setMsg('New photo! Show SAM where the hiding things are.') }}>📷 Snap again</button>}
     <p className="note">This only works because SAM 3.1 understands words: tell it "banana" and it finds the banana's exact pixels.</p>
-    <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
