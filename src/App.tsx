@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'celebrate'
-type Stuffy = { name: string; img: string | null; hat: boolean }
+type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'home_tree' | 'celebrate'
+type Stuffy = { name: string; img: string | null; hat: boolean; cape?: boolean; glasses?: boolean }
+const STOPS = [
+  { id: 'ratio', label: 'Counting Meadow', sub: 'Ratio counting', prize: '' },
+  { id: 'ninja', label: 'Fruit Slice Grove', sub: 'Fruit Ninja math', prize: 'hat' },
+  { id: 'showme', label: 'Show Me Hill', sub: 'Show the number', prize: '' },
+  { id: 'build', label: 'Build-a-Number Bridge', sub: 'Make 10', prize: 'glasses' },
+  { id: 'balance', label: 'Balance Falls', sub: 'Which side has more?', prize: '' },
+  { id: 'home_tree', label: 'Home Tree', sub: 'The rescue finale', prize: 'cape' },
+] as const
 const FALLBACK_STORY = (n: string) => `${n} is lost in the Toybox Forest! Follow the trail, play the counting games, and help ${n} find the way home. Every game you finish earns a star.`
 
 function speak(text: string) {
@@ -24,7 +32,9 @@ export default function App() {
 
   const [story, setStory] = useState(() => localStorage.getItem('toybox-story') || '')
   useEffect(() => { if (screen !== 'trail' || story) return; fetch('/api/story', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }).then(r => r.json()).then(j => { if (j.story) { setStory(j.story); localStorage.setItem('toybox-story', j.story); speak(j.story) } }).catch(() => {}) }, [screen])
-  const win = (game: string) => { setStars(s => s + 1); pop(760); speak(`You did it! ${name} is so proud of you!`); setScreen('celebrate'); if (game === 'ninja' && !stuffy.hat) setStuffy(s => ({ ...s, hat: true })) }
+  const [done, setDone] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('toybox-done') || '[]') } catch { return [] } })
+  useEffect(() => { localStorage.setItem('toybox-done', JSON.stringify(done)) }, [done])
+  const win = (game: string) => { setStars(s => s + 1); if (!done.includes(game)) setDone(d => [...d, game]); pop(760); speak(`You did it! ${name} is so proud of you!`); if (game === 'ninja') setStuffy(s => ({ ...s, hat: true })); if (game === 'build') setStuffy(s => ({ ...s, glasses: true })); if (game === 'home_tree') setStuffy(s => ({ ...s, cape: true })); setScreen('celebrate') }
 
   const onUpload = async (f: File) => {
     setSamStatus('Looking at your stuffy...')
@@ -74,12 +84,13 @@ export default function App() {
           <h1>Meet your math buddy</h1>
           <div className="stuffyStage">
             {stuffy.img ? <img className="stuffyImg" src={stuffy.img} alt={name} /> : <div className="stuffyBlob" aria-label="stuffy placeholder">🧸</div>}
-            {stuffy.hat && <div className="hat">🎩</div>}
+            {stuffy.hat && <div className="hat">🎩</div>}{stuffy.glasses && <div className="glasses">🕶️</div>}{stuffy.cape && <div className="cape">🦸</div>}
           </div>
           <label className="btn fileBtn">Upload a stuffy photo<input type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])} /></label>
           <label className="nameRow">Name <input value={stuffy.name} onChange={e => setStuffy(s => ({ ...s, name: e.target.value }))} maxLength={16} /></label>
           <button className="btn big" onClick={() => { speak(FALLBACK_STORY(name)); setScreen('trail') }}>Start the adventure ▶</button>
           <button className="btn ghost" onClick={() => speak(`Hello! I am ${name}. Let's play math games together!`)}>🔊 Hear {name} talk</button>
+          {(stuffy.hat || stuffy.glasses || stuffy.cape) && <p className="note">{name}'s treasures: {stuffy.hat ? '🎩 party hat ' : ''}{stuffy.glasses ? '🕶️ star glasses ' : ''}{stuffy.cape ? '🦸 hero cape' : ''} — earned on the trail!</p>}
           <p className="note">{samStatus}</p>
         </section>
       )}
@@ -87,10 +98,11 @@ export default function App() {
       {screen === 'trail' && (
         <section className="panel">
           <h1>The Toybox Trail</h1><p className="story">{story || FALLBACK_STORY(name)}</p>{story && <p className="note">Story by Muse Spark</p>}
+          <div className="rescueBar"><div className="rescueFill" style={{ width: `${Math.round(done.length / STOPS.length * 100)}%` }} /></div>
+          <p className="note">Rescue journey: {done.length} of {STOPS.length} stops — every stop brings {name} closer to home!</p>
           <div className="trail">
-            <button className="stop" onClick={() => setScreen('ratio')}><span>1</span> Counting Meadow<small>Ratio counting</small></button>
-            <div className="path" /><button className="stop" onClick={() => setScreen('ninja')}><span>2</span> Fruit Slice Grove<small>Fruit Ninja math</small></button>
-            <div className="path" /><div className="stop locked"><span>★</span> Home Tree<small>{stuffy.hat ? 'Hat earned!' : 'Finish games to earn a hat'}</small></div>
+            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); return (
+              <div key={s.id}>{i > 0 && <div className="path" />}<button disabled={!unlocked} className={`stop ${isDone ? 'doneStop' : ''} ${!unlocked ? 'locked' : ''}`} onClick={() => setScreen(s.id as Screen)}><span>{isDone ? '★' : unlocked ? i + 1 : '🔒'}</span> {s.label}<small>{s.sub}{s.prize ? ` · prize: ${s.prize === 'hat' ? '🎩 hat' : s.prize === 'glasses' ? '🕶️ glasses' : '🦸 cape'}` : ''}</small></button></div>) })}
           </div>
           <button className="btn ghost" onClick={() => setScreen('home')}>← Back to {name}</button>
         </section>
@@ -98,10 +110,14 @@ export default function App() {
 
       {screen === 'ratio' && <Ratio name={name} img={stuffy.img} onWin={() => win('ratio')} onBack={() => setScreen('trail')} />}
       {screen === 'ninja' && <Ninja name={name} img={stuffy.img} onWin={() => win('ninja')} onBack={() => setScreen('trail')} />}
+      {screen === 'showme' && <ShowMe name={name} img={stuffy.img} onWin={() => win('showme')} onBack={() => setScreen('trail')} />}
+      {screen === 'build' && <BuildNumber name={name} img={stuffy.img} onWin={() => win('build')} onBack={() => setScreen('trail')} />}
+      {screen === 'balance' && <Balance name={name} img={stuffy.img} onWin={() => win('balance')} onBack={() => setScreen('trail')} />}
+      {screen === 'home_tree' && <HomeTree name={name} img={stuffy.img} doneCount={done.length} total={STOPS.length} onWin={() => win('home_tree')} onBack={() => setScreen('trail')} />}
 
       {screen === 'celebrate' && (
         <section className="panel celebrate"><div className="bigStar">★</div><h1>Great job!</h1>
-          <p>{name} cheers for you!{stuffy.hat ? ` And look — ${name} earned a hat!` : ''}</p>
+          <p>{name} cheers for you! {stuffy.cape ? `${name} earned the hero cape — the rescue is complete!` : 'Keep following the trail home!'}</p>
           <button className="btn big" onClick={() => setScreen('trail')}>Back to the trail</button></section>
       )}
       <footer>Ages 5–8 · Counting to 20 · No timers, no losing — just trying again</footer>
@@ -212,4 +228,57 @@ function Ninja({ name, img, onWin, onBack }: { name: string; img: string | null;
     </div>}
     {photo && !busy && labels.length > 0 && <button className="btn ghost" onClick={() => { setPhoto(null); setLabels([]); setMsg('New photo! Put toys on the table and snap.') }}>📷 New table photo</button>}
     <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+}
+
+function Rounds({ round, total }: { round: number; total: number }) { return <p className="roundBadge">Round {round} of {total}</p> }
+
+function ShowMe({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+  const total = 3; const [round, setRound] = useState(1); const [target, setTarget] = useState(() => 3 + Math.floor(Math.random() * 6))
+  const [picked, setPicked] = useState<Set<number>>(new Set()); const [msg, setMsg] = useState('')
+  const [photoCount, setPhotoCount] = useState<number | null>(null)
+  useEffect(() => { setMsg(`Show me ${target}! Tap blocks — or snap toys on the table and SAM will count them.`); speak(`Show me ${target}!`) }, [target])
+  const next = () => { if (round >= total) onWin(); else { setRound(r => r + 1); setTarget(3 + Math.floor(Math.random() * 6)); setPicked(new Set()); setPhotoCount(null) } }
+  const check = (n: number) => { if (n === target) { pop(740); speak(`Yes! That is ${target}!`); setTimeout(next, 800) } else { pop(210); setMsg(n < target ? `That is ${n}. ${name} needs a few more!` : `That is ${n}. A few too many — tap one off!`); speak(n < target ? 'A few more!' : 'A few too many!') } }
+  const onSnap = async (d: string) => { setMsg('SAM is counting your toys...'); try { let j = await sam('toy', d); if (!j.count) j = await sam('block', d); setPhotoCount(j.count ?? 0); if ((j.count ?? 0) > 0) check(j.count) } catch { setMsg('SAM is resting — tap blocks still works!') } }
+  return (<section className="panel"><h1>Show Me Hill</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+    <p className="ask">Show me {target}!</p>
+    <div className="blocks">{Array.from({ length: 12 }, (_, i) => <button key={i} className={`block pick ${picked.has(i) ? 'picked' : ''}`} onClick={() => { const s = new Set(picked); s.has(i) ? s.delete(i) : s.add(i); setPicked(s); pop(420 + i * 30) }}>{picked.has(i) ? picked.size : ''}</button>)}</div>
+    <p className="note">You are showing: <strong>{picked.size}</strong></p>
+    <div className="row"><button className="btn big" onClick={() => check(picked.size)}>Check!</button></div>
+    <CameraSnap onSnap={onSnap} />{photoCount !== null && <p className="cheer">SAM counted {photoCount} in your photo.</p>}
+    <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+}
+
+function BuildNumber({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+  const total = 3; const goal = 10; const [round, setRound] = useState(1); const [msg, setMsg] = useState(`Pick fruit numbers that add up to ${goal}!`)
+  const deal = () => { const a = 2 + Math.floor(Math.random() * 6); const pair = [a, goal - a]; const extra = [2, 3, 4, 5, 6, 7, 8].filter(n => !pair.includes(n)).sort(() => 0.5 - Math.random()).slice(0, 4); return [...pair, ...extra].sort(() => 0.5 - Math.random()) }
+  const [opts, setOpts] = useState(deal); const [picked, setPicked] = useState<Set<number>>(new Set())
+  const sum = [...picked].reduce((a, i) => a + opts[i], 0)
+  useEffect(() => { speak(`Build the number ${goal}! Pick fruit that add up to ${goal}.`) }, [round])
+  const toggle = (i: number) => { const s = new Set(picked); s.has(i) ? s.delete(i) : s.add(i); setPicked(s); pop(500) }
+  const check = () => { if (sum === goal) { pop(760); speak(`You built ${goal}!`); if (round >= total) setTimeout(onWin, 800); else { setRound(r => r + 1); setPicked(new Set()); setOpts(deal()); setMsg(`Round ${round + 1} — build ${goal} another way!`) } } else { pop(210); setMsg(sum < goal ? `That is ${sum}. Add a little more fruit!` : `That is ${sum}. Too much — tap a fruit to put it back!`); speak(sum < goal ? 'Add a little more!' : 'Too much!') } }
+  return (<section className="panel"><h1>Build-a-Number Bridge</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+    <p className="ask">Build {goal}: {sum} so far</p>
+    <div className="grove">{opts.map((n, i) => <button key={i} className={`fruit ${picked.has(i) ? 'sliced' : ''}`} onClick={() => toggle(i)}>🍎 {n}</button>)}</div>
+    <button className="btn big" onClick={check}>Check!</button><br /><button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+}
+
+function Balance({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+  const total = 3; const [round, setRound] = useState(1); const [msg, setMsg] = useState('Which side has more blocks? Tap that side!')
+  const [sides, setSides] = useState(() => { const l = 1 + Math.floor(Math.random() * 8); let r = 1 + Math.floor(Math.random() * 8); if (r === l) r += 1; return { l, r } })
+  useEffect(() => { speak('Which side has more blocks?') }, [round])
+  const pick = (side: 'l' | 'r') => { const truth = sides.l > sides.r ? 'l' : 'r'; if (side === truth) { pop(740); speak('Yes! That side has more!'); if (round >= total) setTimeout(onWin, 800); else { setRound(r2 => r2 + 1); const l = 1 + Math.floor(Math.random() * 8); let r = 1 + Math.floor(Math.random() * 8); if (r === l) r += 1; setSides({ l, r }); setMsg(`Round ${round + 1} — which side has more?`) } } else { pop(210); setMsg(`Good looking! Count each side slowly, one by one.`); speak('Good looking! Count each side slowly.') } }
+  const pile = (n: number) => <div className="pile">{Array.from({ length: n }, (_, i) => <span key={i} className="miniBlock" />)}</div>
+  return (<section className="panel"><h1>Balance Falls</h1><Rounds round={round} total={total} /><Companion name={name} img={img} msg={msg} />
+    <div className="balanceRow"><button className="side" onClick={() => pick('l')}>{pile(sides.l)}<span>{sides.l}</span></button><div className="vs">⚖️</div><button className="side" onClick={() => pick('r')}>{pile(sides.r)}<span>{sides.r}</span></button></div>
+    <p className="note">Tap the side with more blocks. No wrong turns — just count again!</p>
+    <button className="btn ghost" onClick={onBack}>← Trail</button></section>)
+}
+
+function HomeTree({ name, img, doneCount, total, onWin, onBack }: { name: string; img: string | null; doneCount: number; total: number; onWin: () => void; onBack: () => void }) {
+  const ready = doneCount >= total - 1
+  return (<section className="panel"><h1>The Home Tree</h1><Companion name={name} img={img} msg={ready ? `We made it home! Thank you for counting, slicing, showing, building and balancing with me!` : `The Home Tree is waiting! Finish ${total - 1 - doneCount} more stop${total - 1 - doneCount === 1 ? '' : 's'} on the trail and ${name} can come home.`} />
+    <div className="homeTree">🌳</div>
+    {ready ? <><p className="ask">{name} is home!</p><button className="btn big" onClick={onWin}>🎉 Celebrate the rescue!</button></> : <button className="btn" onClick={onBack}>Back to the trail — adventure awaits!</button>}
+    <br /><button className="btn ghost" onClick={onBack}>← Trail</button></section>)
 }
