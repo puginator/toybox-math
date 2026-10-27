@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { IconBalance, IconBuild, IconCount, IconHunt, IconJar, IconLamp, IconPattern, IconShow, IconSlice } from './icons'
+import { IconBalance, IconBuild, IconCount, IconHunt, IconJar, IconLamp, IconPattern, IconShow, IconSlice, IconSpot } from './icons'
 
-type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'estimate' | 'pattern' | 'hunt' | 'home_tree' | 'celebrate'
+type Screen = 'home' | 'trail' | 'ratio' | 'ninja' | 'showme' | 'build' | 'balance' | 'estimate' | 'pattern' | 'hunt' | 'spotlight' | 'home_tree' | 'celebrate'
 type Stuffy = { name: string; img: string | null; hat: boolean; cape?: boolean; glasses?: boolean }
-const STOP_ICONS: Record<string, () => JSX.Element> = { ratio: IconCount, ninja: IconSlice, showme: IconShow, build: IconBuild, balance: IconBalance, estimate: IconJar, pattern: IconPattern, hunt: IconHunt, home_tree: IconLamp }
+const STOP_ICONS: Record<string, () => JSX.Element> = { ratio: IconCount, ninja: IconSlice, showme: IconShow, build: IconBuild, balance: IconBalance, estimate: IconJar, pattern: IconPattern, hunt: IconHunt, spotlight: IconSpot, home_tree: IconLamp }
 const STOPS = [
   { id: 'ratio', label: 'Dresser Drawer', sub: 'Counting blocks', prize: '' },
   { id: 'ninja', label: 'Nightstand Slice', sub: 'Fruit Ninja math', prize: 'hat' },
@@ -13,6 +13,7 @@ const STOPS = [
   { id: 'estimate', label: 'Toy Jar Corner', sub: 'Guess, then SAM counts', prize: '' },
   { id: 'pattern', label: 'Rug Pattern Path', sub: 'Copy the pattern', prize: '' },
   { id: 'hunt', label: 'SAM Scavenger Hunt', sub: 'SAM finds hidden things', prize: '' },
+  { id: 'spotlight', label: 'SAM Spotlight', sub: 'SAM follows your toy', prize: '' },
   { id: 'home_tree', label: 'The Warm Lamp', sub: 'Home, at last', prize: 'cape' },
 ] as const
 const FALLBACK_STORY = (n: string) => `${n} is lost in the bedroom after lights-out! Cross the nightstand, climb the bookshelf, and follow the warm lamp home. Every stop you finish earns a star.`
@@ -134,8 +135,15 @@ export default function App() {
           <div className="rescueBar"><div className="rescueFill" style={{ width: `${Math.round(done.length / STOPS.length * 100)}%` }} /></div>
           <p className="note">Rescue journey: {done.length} of {STOPS.length} stops — every stop brings {name} closer to home and recovers a piece of {name}'s portrait puzzle!</p>
           <div className="mapScene">
+            <svg className="mapSceneArt" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <rect x="58" y="3" width="34" height="26" rx="2" fill="#1d2750" stroke="#d7ad58" strokeWidth="0.8" /><circle cx="84" cy="10" r="3.4" fill="#ffe9a8" /><path d="M62 22l4-8 4 10 5-12 5 14 4-9 6 9" fill="#3c5a3c" />
+              <rect x="3" y="34" width="30" height="22" fill="#8a5a33" stroke="#5d3d22" strokeWidth="0.8" /><rect x="6" y="38" width="24" height="6" fill="#6d4525" /><rect x="6" y="47" width="24" height="6" fill="#6d4525" /><circle cx="27" cy="41" r="1" fill="#ffca7a" /><circle cx="27" cy="50" r="1" fill="#ffca7a" />
+              <rect x="66" y="36" width="30" height="26" fill="#7a4e2c" stroke="#5d3d22" strokeWidth="0.8" /><path d="M69 42h24M69 50h24M69 58h24" stroke="#5d3d22" strokeWidth="1.4" /><rect x="70" y="37.5" width="3" height="4" fill="#e53935" /><rect x="75" y="37.5" width="3" height="4" fill="#1e88e5" /><rect x="80" y="45.5" width="3" height="4" fill="#43a047" /><rect x="86" y="53.5" width="3" height="4" fill="#fb8c00" />
+              <rect x="4" y="72" width="42" height="14" rx="3" fill="#4a5da9" stroke="#2c3a75" strokeWidth="0.8" /><rect x="4" y="68" width="13" height="9" rx="3" fill="#fff8e1" /><rect x="8" y="76" width="34" height="3" fill="#e53935" opacity="0.55" />
+              <path d="M84 74h8l3 10H81z" fill="#fb8c00" stroke="#6d4c2f" strokeWidth="0.7" /><circle cx="88" cy="88" r="5" fill="#ffe9a8" opacity="0.35" />
+            </svg>
             <svg className="mapPath" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M12 6 C 70 14, 88 22, 82 34 C 76 46, 20 44, 14 56 C 9 67, 78 68, 84 78 C 89 87, 45 92, 30 96" fill="none" stroke="#d7ad58" strokeWidth="1.8" strokeDasharray="4 3" strokeLinecap="round" /></svg>
-            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); const isNext = unlocked && !isDone; const Icon = STOP_ICONS[s.id]; const pos = [{ l: 4, t: 0 }, { l: 68, t: 10 }, { l: 66, t: 26 }, { l: 8, t: 34 }, { l: 6, t: 48 }, { l: 62, t: 55 }, { l: 66, t: 70 }, { l: 18, t: 76 }, { l: 28, t: 88 }][i]
+            {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); const isNext = unlocked && !isDone; const Icon = STOP_ICONS[s.id]; const pos = [{ l: 4, t: 0 }, { l: 68, t: 9 }, { l: 64, t: 23 }, { l: 8, t: 30 }, { l: 5, t: 43 }, { l: 60, t: 48 }, { l: 64, t: 62 }, { l: 16, t: 66 }, { l: 58, t: 79 }, { l: 24, t: 87 }][i]
               return <button key={s.id} disabled={!unlocked} className={`mapStop ${isDone ? 'doneStop' : ''} ${isNext ? 'nextStop' : ''}`} style={{ left: `${pos.l}%`, top: `${pos.t}%` }} onClick={() => setScreen(s.id as Screen)}>
                 <span className="mapIcon"><Icon /></span><span className="mapLabel"><strong>{isDone ? '★ ' : !unlocked ? '🔒 ' : ''}{s.label}</strong><small>{s.sub}{s.prize ? ` · prize ${s.prize === 'hat' ? '🎩' : s.prize === 'glasses' ? '🕶️' : '🦸'}` : ''}</small></span>
                 {isNext && stuffy.img && <img className="mapBuddy" src={stuffy.img} alt={name} />}</button> })}
@@ -153,6 +161,7 @@ export default function App() {
       {screen === 'estimate' && <Estimate name={name} img={stuffy.img} onWin={() => win('estimate')} onBack={() => setScreen('trail')} />}
       {screen === 'pattern' && <PatternCopy name={name} img={stuffy.img} onWin={() => win('pattern')} onBack={() => setScreen('trail')} />}
       {screen === 'hunt' && <Hunt name={name} img={stuffy.img} onWin={() => win('hunt')} onBack={() => setScreen('trail')} />}
+      {screen === 'spotlight' && <Spotlight name={name} img={stuffy.img} onWin={() => win('spotlight')} onBack={() => setScreen('trail')} />}
       {screen === 'home_tree' && <HomeTree name={name} img={stuffy.img} doneCount={done.length} total={STOPS.length} onWin={() => win('home_tree')} onBack={() => setScreen('trail')} />}
 
       {screen === 'celebrate' && (
@@ -186,7 +195,7 @@ function Companion({ name, img, msg }: { name: string; img: string | null; msg: 
 function CameraSnap({ onSnap }: { onSnap: (d: string) => void }) {
   const video = useRef<HTMLVideoElement>(null); const stream = useRef<MediaStream | null>(null)
   const [live, setLive] = useState(false); const [err, setErr] = useState('')
-  const start = async () => { try { stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); if (video.current) { video.current.srcObject = stream.current; setLive(true) } } catch { setErr('Camera is shy right now. You can upload a photo or play with the blocks instead!') } }
+  const start = async () => { try { stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); setLive(true); setTimeout(() => { if (video.current && stream.current) { video.current.srcObject = stream.current; video.current.play().catch(() => {}) } }, 60) } catch { setErr('Camera is shy right now. You can upload a photo or play with the blocks instead!') } }
   const stop = () => { stream.current?.getTracks().forEach(tr => tr.stop()); setLive(false) }
   useEffect(() => () => stop(), [])
   const snap = () => { const v = video.current; if (!v) return; const s = Math.min(1, 1024 / Math.max(v.videoWidth, v.videoHeight)); const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * s); c.height = Math.round(v.videoHeight * s); c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height); stop(); onSnap(c.toDataURL('image/jpeg', 0.85)) }
@@ -438,5 +447,35 @@ function Hunt({ name, img, onWin, onBack }: { name: string; img: string | null; 
     {busy && <p className="cheer">SAM is hunting…</p>}
     {photo && !busy && foundCount < items.length && <button className="btn" onClick={() => { setPhoto(null); setMsg('New photo! Show SAM where the hiding things are.') }}>📷 Snap again</button>}
     <p className="note">This only works because SAM 3.1 understands words: tell it "banana" and it finds the banana's exact pixels.</p>
+    <button className="btn ghost" onClick={onBack}>← Map</button></section>)
+}
+
+function Spotlight({ name, img, onWin, onBack }: { name: string; img: string | null; onWin: () => void; onBack: () => void }) {
+  const video = useRef<HTMLVideoElement>(null); const stream = useRef<MediaStream | null>(null)
+  const [phase, setPhase] = useState<'idle' | 'live' | 'working' | 'done'>('idle'); const [frames, setFrames] = useState<{ src: string; boxes: any[] }[]>([])
+  const [word, setWord] = useState('teddy bear'); const [msg, setMsg] = useState('SAM can follow a toy! Point the camera at a toy, press Start, and move it slowly. SAM will spot it in every photo.')
+  const [err, setErr] = useState('')
+  const stop = () => { stream.current?.getTracks().forEach(tr => tr.stop()) }
+  useEffect(() => () => stop(), [])
+  const start = async () => { try { stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); setPhase('live'); setMsg('Move your toy slowly... press the big button and SAM takes 5 photos!'); setTimeout(() => { if (video.current && stream.current) { video.current.srcObject = stream.current; video.current.play().catch(() => {}) } }, 60) } catch { setErr('Camera is shy right now. Your other games still work!') } }
+  const burst = async () => {
+    const v = video.current; if (!v) return; setPhase('working'); setFrames([]); speak('SAM is watching! Move your toy slowly.')
+    const shots: string[] = []
+    for (let i = 0; i < 5; i++) { const s = Math.min(1, 768 / Math.max(v.videoWidth, v.videoHeight)); const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * s); c.height = Math.round(v.videoHeight * s); c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height); shots.push(c.toDataURL('image/jpeg', 0.8)); setMsg(`Photo ${i + 1} of 5... keep moving slowly!`); await new Promise(r => setTimeout(r, 650)) }
+    stop(); const results: { src: string; boxes: any[] }[] = []
+    for (let i = 0; i < shots.length; i++) { setMsg(`SAM is spotting your ${word} in photo ${i + 1}...`); try { const j = await sam(word, shots[i]); results.push({ src: shots[i], boxes: j.boxes || [] }) } catch { results.push({ src: shots[i], boxes: [] }) } setFrames([...results]) }
+    setPhase('done'); const hits = results.filter(r => r.boxes.length).length
+    if (hits >= 3) { setMsg(`SAM followed your ${word} in ${hits} of 5 photos! Spotlight star!`); speak('SAM followed your toy!'); setTimeout(onWin, 3200) }
+    else { setMsg(`SAM spotted it in ${hits} of 5 photos. Big, slow moves in good light help SAM follow! Try again.`); speak('Try again with big slow moves!') }
+  }
+  return (<section className="panel"><h1>SAM Spotlight</h1><Companion name={name} img={img} msg={msg} />
+    <label className="nameRow">SAM hunts for a… <input value={word} onChange={e => setWord(e.target.value)} maxLength={24} /></label>
+    {phase === 'idle' && <button className="btn big" onClick={start}>📷 Turn on the camera</button>}
+    {err && <p className="note">{err}</p>}
+    {(phase === 'live' || phase === 'working') && <><video ref={video} autoPlay playsInline muted className="camVideo" />{phase === 'live' && <button className="btn big" onClick={burst}>⭐ Start Spotlight — 5 photos!</button>}</>}
+    {phase === 'working' && <p className="cheer">{msg}</p>}
+    {frames.length > 0 && <div className="filmstrip">{frames.map((f, i) => <div key={i} className="filmFrame"><div className="visionWrap"><img src={f.src} alt={`Spotlight photo ${i + 1}`} />{f.boxes.map((b, j) => <div key={j} className="visionBox huntBox" style={{ left: `${b.x1 / b.frameW * 100}%`, top: `${b.y1 / b.frameH * 100}%`, width: `${(b.x2 - b.x1) / b.frameW * 100}%`, height: `${(b.y2 - b.y1) / b.frameH * 100}%` }}>{word}</div>)}</div><span>{f.boxes.length ? '★ SAM sees it!' : 'SAM missed it'}</span></div>)}</div>}
+    {phase === 'done' && <button className="btn" onClick={() => { setPhase('idle'); setFrames([]) }}>Try again</button>}
+    <p className="note">SAM 3.1 can track the same thing from photo to photo. Green outlines show every spot where SAM found it.</p>
     <button className="btn ghost" onClick={onBack}>← Map</button></section>)
 }
