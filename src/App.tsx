@@ -117,6 +117,7 @@ export default function App() {
           <label className="nameRow">Name <input value={stuffy.name} onChange={e => setStuffy(s => ({ ...s, name: e.target.value }))} maxLength={16} /></label>
           <button className="btn big" onClick={() => { speak(FALLBACK_STORY(name)); setScreen('trail') }}>Start the adventure ▶</button>
           <button className="btn ghost" onClick={() => speak(`Hello! I am ${name}. Let's play math games together!`)}>🔊 Hear {name} talk</button>
+          <PortraitPuzzle name={name} img={stuffy.img} done={done} />
           {(stuffy.hat || stuffy.glasses || stuffy.cape) && <p className="note">{name}'s treasures: {stuffy.hat ? '🎩 party hat ' : ''}{stuffy.glasses ? '🕶️ star glasses ' : ''}{stuffy.cape ? '🦸 hero cape' : ''} — earned on the trail!</p>}
           <p className="note">{samStatus}</p>
           {candidates.length > 0 && <div className="candRow">{candidates.map((c, i) => <button key={i} className="candBtn" onClick={() => { setStuffy(s => ({ ...s, img: c.img })); setCandidates([]); setSamStatus('What a great stuffy!'); speak('What a great stuffy!') }}><img src={c.img} alt={`Choice ${i + 1}`} /></button>)}</div>}
@@ -128,7 +129,7 @@ export default function App() {
         <section className="panel">
           <h1>The Toybox Trail</h1><p className="story">{story || FALLBACK_STORY(name)}</p>{story && <p className="note">Story by Muse Spark</p>}
           <div className="rescueBar"><div className="rescueFill" style={{ width: `${Math.round(done.length / STOPS.length * 100)}%` }} /></div>
-          <p className="note">Rescue journey: {done.length} of {STOPS.length} stops — every stop brings {name} closer to home!</p>
+          <p className="note">Rescue journey: {done.length} of {STOPS.length} stops — every stop brings {name} closer to home and recovers a piece of {name}'s portrait puzzle!</p>
           <div className="trail">
             {STOPS.map((s, i) => { const unlocked = i === 0 || done.includes(STOPS[i - 1].id); const isDone = done.includes(s.id); return (
               <div key={s.id}>{i > 0 && <div className="path" />}<button disabled={!unlocked} className={`stop ${isDone ? 'doneStop' : ''} ${!unlocked ? 'locked' : ''}`} onClick={() => setScreen(s.id as Screen)}><span>{isDone ? '★' : unlocked ? i + 1 : '🔒'}</span> {s.label}<small>{s.sub}{s.prize ? ` · prize: ${s.prize === 'hat' ? '🎩 hat' : s.prize === 'glasses' ? '🕶️ glasses' : '🦸 cape'}` : ''}</small></button></div>) })}
@@ -157,6 +158,16 @@ export default function App() {
 }
 
 
+function PortraitPuzzle({ name, img, done }: { name: string; img: string | null; done: string[] }) {
+  // The stuffy stays whole - it's their portrait that got scattered into 6 puzzle pieces,
+  // one recovered at each of the first 6 trail stops. Rebuild it to bring the picture home.
+  const pieceStops = ['ratio', 'ninja', 'showme', 'build', 'balance', 'estimate']
+  const found = pieceStops.filter(id => done.includes(id)).length
+  return (<div className="puzzleBox"><p className="puzzleTitle">🧩 {name}'s Portrait Puzzle — {found} of 6 pieces found</p>
+    <div className="puzzleGrid">{pieceStops.map((id, i) => { const got = done.includes(id); const col = i % 3, rowIdx = Math.floor(i / 3)
+      return <div key={id} className={`puzzlePiece ${got ? 'got' : ''}`} style={got && img ? { backgroundImage: `url(${img})`, backgroundSize: '300% 200%', backgroundPosition: `${col * 50}% ${rowIdx * 100}%` } : undefined}>{!got && <span>?</span>}{got && !img && <span>🧸</span>}</div> })}
+    </div><p className="note">{found === 6 ? `${name}'s portrait is whole again!` : `Finish trail stops to recover the missing pieces!`}</p></div>)
+}
 async function sam(prompt: string, imageDataUrl: string) {
   const r = await fetch('/api/sam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, imageDataUrl }) })
   return r.json()
