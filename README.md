@@ -17,3 +17,13 @@ npm run build # production build
 ## Status
 
 Playable MVP loop with built-in fallbacks: stuffy upload + naming, trail map, tap-to-count Ratio Counting, pointer-slice Fruit Ninja Math (addition + multiples of 3), read-aloud, accessory unlock, localStorage progress. SAM 3.1 / Muse Spark go through `api/sam.js` once `META_MODEL_API_KEY` is set (see `.env.example` and `SPIKE.md`); without a key every game stays playable on fallbacks. See [PLAN.md](PLAN.md) and GitHub issues Step 1-10.
+
+## Deploy (Vercel)
+
+```bash
+vercel login
+vercel env add MODEL_API_KEY production   # paste the dev.meta.ai key when prompted
+vercel --prod
+```
+
+The `api/sam.js` and `api/story.js` functions run as Vercel serverless functions; the key never reaches the browser.
