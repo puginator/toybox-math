@@ -41,10 +41,10 @@ h1{font-family:"Baloo 2",cursive;font-size:38px;margin:8px 0}.btn{background:#43
 .fruitTag{z-index:4}
 
 .candRow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:12px 0}
-.candBtn{background:repeating-conic-gradient(#e0e0e0 0% 25%, #fff 0% 50%) 0 0/24px 24px;border:3px solid #263238;border-radius:14px;padding:8px;cursor:pointer}
+.candBtn{background:#ffe9bd;border:3px solid #263238;border-radius:14px;padding:8px;cursor:pointer}
 .candBtn img{max-width:110px;max-height:110px;display:block}
 .tapPhoto{max-width:260px;border:3px dashed #fb8c00;border-radius:14px;cursor:crosshair}
-.stuffyStage{background:repeating-conic-gradient(#f5f5f5 0% 25%, #fff 0% 50%) 0 0/28px 28px;border-radius:18px}
+.stuffyStage{background:radial-gradient(circle at 50% 38%, #fff3d0 0 42%, #ffd98f 78%, #ffca7a);border-radius:18px}
 
 .puzzleBox{margin:18px 0 6px}.puzzleTitle{font-family:"Baloo 2",cursive;font-size:22px;font-weight:800;margin:6px 0}
 .puzzleGrid{display:grid;grid-template-columns:repeat(3,84px);gap:5px;justify-content:center;margin:10px auto}
