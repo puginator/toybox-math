@@ -157,3 +157,27 @@ input[type="text"],input:not([type]){border:2.5px solid #d8cdb2!important}
   .voiceToggle{font-size:13px;padding:5px 10px}
   .logo{font-size:25px}.stars{font-size:19px;padding:3px 11px}
 }
+
+/* ——— Reinvented core-4: drag play ——— */
+.dragStage{position:relative;height:330px;border:3px solid #6d4c2f;border-radius:18px;background:linear-gradient(#fff8e1 0 58%, #a5d6a7 58% 100%);overflow:hidden;touch-action:none}
+.dragBlock{position:absolute;transform:translate(-50%,-50%);font-size:34px;background:none;border:none;cursor:grab;padding:2px;line-height:1}
+.dragBlock:active{cursor:grabbing}
+.rugZone{position:absolute;left:0;right:0;bottom:0;height:40%;padding:8px;font-weight:800;color:#2e7d32;text-align:center}
+.rugRow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:6px;min-height:38px}
+.rugBlock{width:36px;height:36px;display:grid;place-items:center;border:2.5px solid #263238;border-radius:9px;color:#fff;font-weight:800}
+.rugBlock.red{background:#e53935}.rugBlock.blue{background:#1e88e5}
+.bedZone{border:3px dashed #fb8c00;background:#fff3e0;border-radius:18px;padding:16px;margin:12px 0;font-weight:800;cursor:copy}
+.bedFruit{font-size:19px;font-weight:800;background:#ffecb3;border:2.5px solid #263238;border-radius:999px;padding:6px 14px;cursor:pointer;font-family:inherit}
+.dragFruit.held,.heldBtn{outline:4px solid #ffca7a;transform:scale(1.1)}
+.beamWrap{margin:18px 0 6px}
+.beam{display:flex;justify-content:space-between;gap:10px;transition:transform .5s;background:#ffe0b2;border:3px solid #6d4c2f;border-radius:14px;padding:10px}
+.pan{flex:1;background:#fff8e1;border:2.5px solid #6d4c2f;border-radius:12px;padding:8px;font-weight:800;cursor:copy;min-height:86px}
+.beamPost{font-size:34px;margin-top:2px}
+.basketZone{border:3px dashed #43a047;border-radius:14px;padding:10px;font-weight:800;margin-top:10px;cursor:copy}
+.dragMini{cursor:grab;min-width:24px;min-height:24px}
+.patRow,.slotRow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+.patDot{font-size:30px;line-height:1}
+.patDot.nextDot{width:40px;height:40px;display:grid;place-items:center;border:3px dashed #fb8c00;border-radius:50%;font-size:22px;font-weight:800;color:#e07b00}
+.patSlot{width:48px;height:48px;display:grid;place-items:center;border:3px dashed #bca77f;border-radius:12px;background:#fff;font-weight:800;color:#a1887f;cursor:copy}
+.patSlot.filled{border-style:solid;border-color:#58a700;background:#e8f5e9}
+@media(prefers-reduced-motion:reduce){.beam{transition:none}}

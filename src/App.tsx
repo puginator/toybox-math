@@ -262,15 +262,18 @@ function CameraSnap({ onSnap }: { onSnap: (d: string) => void }) {
 
 function Ratio({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
   const totalRounds = 3
-  const [round, setRound] = useState(1); const [msg, setMsg] = useState(`Put some red things and blue things on the table, then snap a photo!`)
+  const [round, setRound] = useState(1); const [msg, setMsg] = useState(`Put some red things and blue things on the table, then snap a photo! Or drag the blocks onto the counting rug.`)
   const [photo, setPhoto] = useState<string | null>(null); const [busy, setBusy] = useState(false)
   const [counts, setCounts] = useState<{ red: number; blue: number } | null>(null)
   const [vision, setVision] = useState<{ b: any; color: string }[]>([])
-  const [tapped, setTapped] = useState<Set<string>>(new Set())
-  const [blocksRound, setBlocksRound] = useState(() => { const red = 2 + Math.floor(Math.random() * Math.max(2, lv.pileMax - 2)); let blue = 1 + Math.floor(Math.random() * lv.pileMax); if (blue === red) blue += 1; return { red, blue } })
-  const blocks = useMemo(() => [...Array(blocksRound.red).fill('red'), ...Array(blocksRound.blue).fill('blue')].map((c, i) => ({ c, id: `${c}-${i}` })), [blocksRound])
-  useEffect(() => { speak(msg) }, [round])
-  const next = () => { if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setCounts(null); setVision([]); setTapped(new Set()); const red = 2 + Math.floor(Math.random() * Math.max(2, lv.pileMax - 2)); let blue = 1 + Math.floor(Math.random() * lv.pileMax); if (blue === red) blue += 1; setBlocksRound({ red, blue }); setMsg(`Round ${round + 1}! Show me red and blue things again — SAM will count them.`) } }
+  const dealBlocks = () => { const red = 2 + Math.floor(Math.random() * Math.max(2, lv.pileMax - 2)); let blue = 1 + Math.floor(Math.random() * lv.pileMax); if (blue === red) blue += 1; return { red, blue } }
+  const [blocksRound, setBlocksRound] = useState(dealBlocks)
+  const blocks = useMemo(() => [...Array(blocksRound.red).fill('red'), ...Array(blocksRound.blue).fill('blue')].map((c, i) => ({ c: c as string, id: `${c}-${i}` })), [blocksRound])
+  const [counted, setCounted] = useState<string[]>([])
+  const [pos, setPos] = useState<Record<string, { x: number; y: number }>>({})
+  const dragId = useRef<string | null>(null); const stageRef = useRef<HTMLDivElement>(null); const answered = useRef(false)
+  useEffect(() => { const p0: Record<string, { x: number; y: number }> = {}; blocks.forEach((b, i) => { p0[b.id] = { x: 6 + (i * 37) % 78, y: 8 + (i * 23) % 38 } }); setPos(p0); setCounted([]) }, [blocksRound])
+  const next = () => { answered.current = false; if (round >= totalRounds) onWin(); else { setRound(r => r + 1); setPhoto(null); setCounts(null); setVision([]); setBlocksRound(dealBlocks()); setMsg(`Round ${round + 1}! Show me red and blue things again — SAM will count them.`) } }
   const onSnap = async (d: string) => {
     setPhoto(d); setBusy(true); setMsg('SAM is counting your red and blue things...')
     try {
@@ -278,27 +281,31 @@ function Ratio({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEV
       if ((r.count || 0) + (b.count || 0) === 0) { setMsg('SAM could not see red or blue things. Spread them out, give them space, and snap again!'); setBusy(false); return }
       setCounts({ red: r.count, blue: b.count }); setVision([...(r.boxes || []).map((x: any) => ({ b: x, color: '#e53935' })), ...(b.boxes || []).map((x: any) => ({ b: x, color: '#1e88e5' }))]); setMsg(r.count === b.count && r.count > 0 ? `SAM counted ${r.count} red and ${b.count} blue — they are the same! Tap "They're the same!"` : `SAM counted ${r.count} red and ${b.count} blue! See SAM's outlines? Which color has more?`)
       speak(`SAM counted ${r.count} red and ${b.count} blue. Which color has more?`)
-    } catch { setMsg('SAM is resting. Play this round with the tap blocks below!') }
+    } catch { setMsg('SAM is resting. Drag the blocks onto the rug below!') }
     setBusy(false)
   }
-  const answer = (choice: 'red' | 'blue') => {
+  const answer = (choice: 'red' | 'blue' | 'same') => {
     const truth = counts ? (counts.red > counts.blue ? 'red' : counts.blue > counts.red ? 'blue' : 'same') : (blocksRound.red > blocksRound.blue ? 'red' : 'blue')
-    if (choice === truth) { pop(720); setMsg('Yes! Great counting!'); speak('Yes! Great counting!'); setTimeout(next, 900) }
+    if (choice === truth) { if (answered.current) return; answered.current = true; pop(720); setMsg('Yes! Great counting!'); speak('Yes! Great counting!'); setTimeout(next, 900) }
     else { pop(210); setMsg(`Good try! Count with your finger, one by one. ${name} is cheering for you!`); speak('Good try! Count again, one by one.') }
   }
-  const useBlocks = !photo
   const shownRed = counts?.red ?? blocksRound.red, shownBlue = counts?.blue ?? blocksRound.blue
-  const redTapped = blocks.filter(x => x.c === 'red' && tapped.has(x.id)).length, blueTapped = blocks.filter(x => x.c === 'blue' && tapped.has(x.id)).length
-  const ready = counts ? true : tapped.size === blocks.length
+  const redCounted = blocks.filter(x => x.c === 'red' && counted.includes(x.id)).length, blueCounted = blocks.filter(x => x.c === 'blue' && counted.includes(x.id)).length
+  const ready = counts ? true : counted.length === blocks.length && blocks.length > 0
+  const moveDrag = (e: React.PointerEvent) => { const id = dragId.current, st = stageRef.current; if (!id || !st) return; const r = st.getBoundingClientRect(); setPos(p => ({ ...p, [id]: { x: Math.min(92, Math.max(2, (e.clientX - r.left) / r.width * 100)), y: Math.min(88, Math.max(2, (e.clientY - r.top) / r.height * 100)) } })) }
+  const dropDrag = (e: React.PointerEvent) => { const id = dragId.current, st = stageRef.current; dragId.current = null; if (!id || !st) return; const r = st.getBoundingClientRect(); if ((e.clientY - r.top) / r.height > 0.60) { if (!counted.includes(id)) { setCounted(c => [...c, id]); pop(blocks.find(b => b.id === id)?.c === 'red' ? 500 : 380); setMsg(`Counting… ${counted.length + 1} on the rug!`) } } }
   return (<section className="panel"><h1>Dresser Drawer</h1><GameTop round={round} total={totalRounds} onBack={onBack} />
     <Companion name={name} img={img} msg={msg} />
     {!photo && <CameraSnap onSnap={onSnap} />}
     {photo && <div className="photoWrap"><div className="visionWrap"><img src={photo} alt="Your table" className="tablePhoto" />{vision.map((v, i) => <div key={i} className="visionBox" style={{ left: `${v.b.x1 / v.b.frameW * 100}%`, top: `${v.b.y1 / v.b.frameH * 100}%`, width: `${(v.b.x2 - v.b.x1) / v.b.frameW * 100}%`, height: `${(v.b.y2 - v.b.y1) / v.b.frameH * 100}%`, borderColor: v.color }}>SAM</div>)}</div>{counts && <div className="countChips"><span className="chip redChip">Red: {counts.red}</span><span className="chip blueChip">Blue: {counts.blue}</span></div>}</div>}
     {busy && <p className="cheer">SAM is looking…</p>}
-    {useBlocks && <><p>Or tap every block to count it. <strong>{redTapped} red</strong> · <strong>{blueTapped} blue</strong></p>
-      <div className="blocks">{blocks.map(b => <button key={b.id} className={`block ${b.c} ${tapped.has(b.id) ? 'counted' : ''}`} onClick={() => { setTapped(s => new Set(s).add(b.id)); pop(b.c === 'red' ? 500 : 380) }}>{tapped.has(b.id) ? '✓' : ''}</button>)}</div></>}
+    {!photo && <><p className="note">No table handy? <strong>Drag every block onto the counting rug.</strong> Counted: <strong>{redCounted} red</strong> · <strong>{blueCounted} blue</strong></p>
+      <div className="dragStage" ref={stageRef} onPointerMove={moveDrag} onPointerUp={dropDrag}>
+        {blocks.filter(b => !counted.includes(b.id)).map(b => <button key={b.id} className={`dragBlock ${b.c}`} style={{ left: `${pos[b.id]?.x ?? 10}%`, top: `${pos[b.id]?.y ?? 10}%` }} onPointerDown={e => { dragId.current = b.id; (e.target as HTMLElement).setPointerCapture?.(e.pointerId) }} aria-label={`Drag ${b.c} block`}>{b.c === 'red' ? '🟥' : '🟦'}</button>)}
+        <div className="rugZone">🧺 Counting rug — drop blocks here<div className="rugRow">{blocks.filter(b => counted.includes(b.id)).map((b, i) => <span key={b.id} className={`rugBlock ${b.c}`}>{i + 1}</span>)}</div></div>
+      </div></>}
     {photo && !counts && !busy && <button className="btn" onClick={() => { setPhoto(null); setMsg('Okay, new photo! Show SAM your red and blue things.') }}>📷 Snap again</button>}
-    {ready && <><p className="ask">Which color has more?</p><div className="row"><button className="btn redBtn" onClick={() => answer('red')}>Red ({shownRed})</button><button className="btn blueBtn" onClick={() => answer('blue')}>Blue ({shownBlue})</button>{counts && counts.red === counts.blue && <button className="btn" onClick={() => { pop(720); setMsg('Yes! They are the same!'); speak('Yes! They are the same!'); setTimeout(next, 900) }}>They're the same!</button>}</div></>}
+    {ready && <><p className="ask">Which color has more?</p><div className="row"><button className="btn redBtn" onClick={() => answer('red')}>Red ({shownRed})</button><button className="btn blueBtn" onClick={() => answer('blue')}>Blue ({shownBlue})</button>{counts && counts.red === counts.blue && <button className="btn" onClick={() => answer('same')}>They're the same!</button>}</div></>}
     </section>)
 }
 
@@ -374,28 +381,47 @@ function ShowMe({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LE
 }
 
 function BuildNumber({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
-  const total = 3; const goal = lv.buildGoal; const [round, setRound] = useState(1); const [msg, setMsg] = useState(`Pick fruit numbers that add up to ${goal}!`)
+  const total = 3; const goal = lv.buildGoal; const [round, setRound] = useState(1); const [mode, setMode] = useState<'table' | 'drag'>('table')
+  const [msg, setMsg] = useState(`Build ${goal} with real things! Put toys or fruit on the bed, snap, and SAM counts. Add or take away until SAM says ${goal}!`)
+  const [tableCount, setTableCount] = useState<number | null>(null); const [busy, setBusy] = useState(false); const [photo, setPhoto] = useState<string | null>(null)
   const deal = () => { const a = 1 + Math.floor(Math.random() * (goal - 1)); const pair = [a, goal - a]; const extra = Array.from({ length: goal }, (_, i) => i + 1).filter(n => !pair.includes(n)).sort(() => 0.5 - Math.random()).slice(0, 4); return [...pair, ...extra].sort(() => 0.5 - Math.random()) }
-  const [opts, setOpts] = useState(deal); const [picked, setPicked] = useState<Set<number>>(new Set())
-  const sum = [...picked].reduce((a, i) => a + opts[i], 0)
-  useEffect(() => { speak(`Build the number ${goal}! Pick fruit that add up to ${goal}.`) }, [round])
-  const toggle = (i: number) => { const s = new Set(picked); s.has(i) ? s.delete(i) : s.add(i); setPicked(s); pop(500) }
-  const check = () => { if (sum === goal) { pop(760); speak(`You built ${goal}!`); if (round >= total) setTimeout(onWin, 800); else { setRound(r => r + 1); setPicked(new Set()); setOpts(deal()); setMsg(`Round ${round + 1} — build ${goal} another way!`) } } else { pop(210); setMsg(sum < goal ? `That is ${sum}. Add a little more fruit!` : `That is ${sum}. Too much — tap a fruit to put it back!`); speak(sum < goal ? 'Add a little more!' : 'Too much!') } }
+  const [opts, setOpts] = useState(deal); const [picked, setPicked] = useState<number[]>([]); const [held, setHeld] = useState<number | null>(null); const bedRef = useRef<HTMLDivElement>(null)
+  const sum = picked.reduce((a, i) => a + opts[i], 0)
+  const advance = () => { pop(760); if (round >= total) setTimeout(onWin, 800); else { setRound(r => r + 1); setPicked([]); setOpts(deal()); setTableCount(null); setPhoto(null); setMsg(`Round ${round + 1} — build ${goal} another way!`) } }
+  const onSnap = async (d: string) => { setPhoto(d); setBusy(true); setMsg('SAM is counting what you built...'); try { let j = await sam('toy', d); for (const w of ['fruit', 'block', 'cup', 'ball']) { if (j.count) break; const k = await sam(w, d); if ((k.count || 0) > (j.count || 0)) j = k } const n = j.count ?? 0; setTableCount(n); if (n === goal) { setMsg(`SAM counted ${n} — you built ${goal}!`); speak(`You built ${goal}!`); setTimeout(advance, 1200) } else if (n > 0 && n < goal) { setMsg(`SAM counted ${n}. Add ${goal - n} more, then snap again!`); speak(`That is ${n}. Add a little more!`) } else if (n > goal) { setMsg(`SAM counted ${n}. Take ${n - goal} away, then snap again!`); speak('Too much! Take some away.') } else setMsg('SAM could not count those yet. Spread them out in a row and snap again!') } catch { setMsg('SAM is resting — drag fruit into the bed below instead!'); setMode('drag') } setBusy(false) }
+  const dropFruit = () => { if (held === null || sum >= goal) { setHeld(null); return } const i = held; setHeld(null); if (picked.includes(i)) return; const ns = sum + opts[i]; setPicked(p => [...p, i]); pop(500); if (ns === goal) { setMsg(`You built ${goal}!`); speak(`You built ${goal}!`); setTimeout(advance, 900) } else if (ns > goal) setMsg(`That is ${ns} — too much! Tap a fruit in the bed to take it back.`); else setMsg(`${ns} so far — drag in more fruit!`) }
+  useEffect(() => { if (held === null) return; const up = (e: PointerEvent) => { const r = bedRef.current?.getBoundingClientRect(); if (r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) dropFruit() }; window.addEventListener('pointerup', up); return () => window.removeEventListener('pointerup', up) }, [held, picked, sum])
   return (<section className="panel"><h1>Build-a-Number Bed</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
-    <p className="ask">Build {goal}: {sum} so far</p>
-    <div className="grove">{opts.map((n, i) => <button key={i} className={`fruit ${picked.has(i) ? 'sliced' : ''}`} onClick={() => toggle(i)}>🍎 {n}</button>)}</div>
-    <button className="btn big" onClick={check}>Check!</button><br /></section>)
+    <p className="ask">Build {goal}{mode === 'drag' ? `: ${sum} in the bed` : tableCount !== null ? ` — SAM counted ${tableCount}` : ''}</p>
+    <div className="wordChips"><button className={`btn chipBtn ${mode === 'table' ? '' : 'ghost'}`} onClick={() => setMode('table')}>📷 Build with real things</button><button className={`btn chipBtn ${mode === 'drag' ? '' : 'ghost'}`} onClick={() => setMode('drag')}>🧺 Drag fruit</button></div>
+    {mode === 'table' && <><CameraSnap onSnap={onSnap} />{busy && <p className="cheer">SAM is counting…</p>}{photo && tableCount !== null && <p className="cheer">SAM counted {tableCount} — {tableCount === goal ? 'perfect!' : tableCount < goal ? `add ${goal - tableCount} more and snap again!` : `take ${tableCount - goal} away and snap again!`}</p>}</>}
+    {mode === 'drag' && <><div className="bedZone" ref={bedRef} onPointerUp={dropFruit}><span>🛏️ The bed — drop fruit here</span><div className="rugRow">{picked.map(i => <button key={i} className="bedFruit" onClick={e => { e.stopPropagation(); setPicked(p => p.filter(x => x !== i)); pop(300) }}>🍎 {opts[i]}</button>)}</div>{picked.length === 0 && <p className="note">Drag a fruit up here…</p>}</div>
+    <div className="grove">{opts.map((n, i) => !picked.includes(i) && <button key={i} className={`fruit dragFruit ${held === i ? 'held' : ''}`} onPointerDown={() => setHeld(i)}>🍎 {n}</button>)}</div>
+    <p className="note">Hold a fruit, slide it onto the bed, let go! Tap fruit in the bed to take it back.</p></>}
+    </section>)
 }
 
 function Balance({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
-  const total = 3; const [round, setRound] = useState(1); const [msg, setMsg] = useState('Which side has more blocks? Tap that side!')
-  const [sides, setSides] = useState(() => { const l = 1 + Math.floor(Math.random() * lv.pileMax); let r = 1 + Math.floor(Math.random() * lv.pileMax); if (r === l) r += 1; return { l, r } })
-  useEffect(() => { speak('Which side has more blocks?') }, [round])
-  const pick = (side: 'l' | 'r') => { const truth = sides.l > sides.r ? 'l' : 'r'; if (side === truth) { pop(740); speak('Yes! That side has more!'); if (round >= total) setTimeout(onWin, 800); else { setRound(r2 => r2 + 1); const l = 1 + Math.floor(Math.random() * lv.pileMax); let r = 1 + Math.floor(Math.random() * lv.pileMax); if (r === l) r += 1; setSides({ l, r }); setMsg(`Round ${round + 1} — which side has more?`) } } else { pop(210); setMsg(`Good looking! Count each side slowly, one by one.`); speak('Good looking! Count each side slowly.') } }
-  const pile = (n: number) => <div className="pile">{Array.from({ length: n }, (_, i) => <span key={i} className="miniBlock" />)}</div>
+  const total = 3; const [round, setRound] = useState(1); const [mode, setMode] = useState<'table' | 'drag'>('table')
+  const [msg, setMsg] = useState('Build two piles on your table — some on the left, some on the right — then snap! SAM counts each side. Which side has more?')
+  const [table, setTable] = useState<{ l: number; r: number } | null>(null); const [revealed, setRevealed] = useState(false); const [busy, setBusy] = useState(false)
+  const deal = () => { const l = 1 + Math.floor(Math.random() * lv.pileMax); let r = 1 + Math.floor(Math.random() * lv.pileMax); if (r === l) r += 1; return { l, r } }
+  const [sides, setSides] = useState(deal); const [heldFrom, setHeldFrom] = useState<'basket' | 'l' | 'r' | null>(null); const answeredB = useRef(false); const panLRef = useRef<HTMLDivElement>(null); const panRRef = useRef<HTMLDivElement>(null); const basketRef = useRef<HTMLDivElement>(null)
+  const advance = () => { answeredB.current = false; if (round >= total) setTimeout(onWin, 900); else { setRound(r2 => r2 + 1); setSides(deal()); setTable(null); setRevealed(false); setMsg(`Round ${round + 1} — build two new piles!`) } }
+  const onSnap = async (d: string) => { setBusy(true); setRevealed(false); setMsg('SAM is counting the left side and the right side...'); try { const j = await sam('toy', d); const boxes = j.boxes || []; if (!boxes.length) { setMsg('SAM could not find toys. Spread two piles apart — left and right — and snap again!'); setBusy(false); return } const fw = boxes[0].frameW || 1000; const l = boxes.filter((b: any) => (b.x1 + b.x2) / 2 < fw / 2).length; setTable({ l, r: boxes.length - l }); setMsg(`SAM found ${boxes.length} things! Which side has more — left or right?`) } catch { setMsg('SAM is resting — level the beam below instead!'); setMode('drag') } setBusy(false) }
+  useEffect(() => { if (!heldFrom) return; const up = (e: PointerEvent) => { const hit = (r?: DOMRect | null) => !!r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; if (hit(panLRef.current?.getBoundingClientRect())) dropOn('l'); else if (hit(panRRef.current?.getBoundingClientRect())) dropOn('r'); else if (hit(basketRef.current?.getBoundingClientRect())) dropOn('basket') }; window.addEventListener('pointerup', up); return () => window.removeEventListener('pointerup', up) }, [heldFrom, sides])
+  const answer = (choice: 'l' | 'r' | 'same') => { if (!table || answeredB.current) return; const truth = table.l > table.r ? 'l' : table.r > table.l ? 'r' : 'same'; setRevealed(true); if (choice === truth) { answeredB.current = true; pop(740); setMsg(`Yes! Left ${table.l}, right ${table.r}!`); speak('Yes! That side has more!'); setTimeout(advance, 1400) } else { pop(210); setMsg(`Good looking! SAM counted left ${table.l} and right ${table.r}. Count each side slowly!`); speak('Good looking! Count each side slowly.') } }
+  const tilt = Math.max(-16, Math.min(16, (sides.r - sides.l) * 3))
+  const dropOn = (side: 'l' | 'r' | 'basket') => { if (!heldFrom) return; const hf = heldFrom; setHeldFrom(null); setSides(s => { let { l, r } = s; if (hf === 'basket' && side === 'l') l++; else if (hf === 'basket' && side === 'r') r++; else if (hf === 'l' && side === 'basket' && l > 0) l--; else if (hf === 'r' && side === 'basket' && r > 0) r--; else if (hf === 'l' && side === 'r' && l > 0) { l--; r++ } else if (hf === 'r' && side === 'l' && r > 0) { r--; l++ } return { l, r } }); pop(460) }
+  useEffect(() => { if (mode === 'drag' && sides.l === sides.r && sides.l > 0) { setMsg('The beam is level — both sides are the same!'); speak('The beam is level!'); const id = setTimeout(advance, 1100); return () => clearTimeout(id) } }, [sides, mode])
+  const pile = (n: number, side: 'l' | 'r') => <div className="pile">{Array.from({ length: n }, (_, i) => <button key={i} className="miniBlock dragMini" onPointerDown={() => setHeldFrom(side)} aria-label={`Drag block off ${side} pan`}> </button>)}</div>
   return (<section className="panel"><h1>Lamp Balance</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
-    <div className="balanceRow"><button className="side" onClick={() => pick('l')}>{pile(sides.l)}<span>{sides.l}</span></button><div className="vs">⚖️</div><button className="side" onClick={() => pick('r')}>{pile(sides.r)}<span>{sides.r}</span></button></div>
-    <p className="note">Tap the side with more blocks. No wrong turns — just count again!</p>
+    <div className="wordChips"><button className={`btn chipBtn ${mode === 'table' ? '' : 'ghost'}`} onClick={() => setMode('table')}>📷 Real table piles</button><button className={`btn chipBtn ${mode === 'drag' ? '' : 'ghost'}`} onClick={() => setMode('drag')}>⚖️ Level the beam</button></div>
+    {mode === 'table' && <><CameraSnap onSnap={onSnap} />{busy && <p className="cheer">SAM is counting…</p>}
+      {table && <><p className="ask">Which side has more?</p><div className="row"><button className="btn redBtn" onClick={() => answer('l')}>⬅️ Left{revealed ? ` (${table.l})` : ''}</button><button className="btn blueBtn" onClick={() => answer('r')}>Right ➡️{revealed ? ` (${table.r})` : ''}</button>{table.l === table.r && <button className="btn" onClick={() => answer('same')}>They're the same!</button>}</div></>}</>}
+    {mode === 'drag' && <><p className="note">Drag blocks from the basket onto a pan — or drag blocks off a pan — until the beam is <strong>level</strong>!</p>
+      <div className="beamWrap"><div className="beam" style={{ transform: `rotate(${tilt}deg)` }}><div className="pan panL" ref={panLRef} onPointerUp={() => dropOn('l')}>{pile(sides.l, 'l')}<span>{sides.l}</span></div><div className="pan panR" ref={panRRef} onPointerUp={() => dropOn('r')}>{pile(sides.r, 'r')}<span>{sides.r}</span></div></div><div className="beamPost">⚖️</div></div>
+      <div className="basketZone" ref={basketRef} onPointerUp={() => dropOn('basket')}><span>🧺 Block basket — drag from here</span><div className="pile">{Array.from({ length: 8 }, (_, i) => <button key={i} className={`miniBlock dragMini ${heldFrom === 'basket' ? 'held' : ''}`} onPointerDown={() => setHeldFrom('basket')} aria-label="Drag block from basket"> </button>)}</div></div></>}
     </section>)
 }
 
@@ -439,16 +465,26 @@ function Estimate({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof 
 }
 
 function PatternCopy({ name, lv, img, onWin, onBack }: { name: string; lv: (typeof LEVELS)[LevelId]; img: string | null; onWin: () => void; onBack: () => void }) {
-  const total = 3; const [round, setRound] = useState(1); const [msg, setMsg] = useState('Watch the pattern, then copy it!')
+  const total = 3; const [round, setRound] = useState(1); const [mode, setMode] = useState<'table' | 'drag'>('table')
+  const [msg, setMsg] = useState('Make a color pattern on your table — red, blue, red, blue — in a row! Snap it and SAM will read it left to right. What comes next?')
   const deal = () => { const cols = ['red', 'blue', 'green']; const base = [cols[Math.floor(Math.random() * 3)], cols[Math.floor(Math.random() * 3)]]; if (base[0] === base[1]) base[1] = cols.find(c => c !== base[0])!; return Array.from({ length: lv.patternLen }, (_, i) => base[i % 2]) }
-  const [pattern, setPattern] = useState(deal); const [mine, setMine] = useState<string[]>([])
-  useEffect(() => { speak('Copy the pattern!') }, [round])
-  const tap = (c: string) => { const next = [...mine, c]; setMine(next); pop(c === 'red' ? 500 : c === 'blue' ? 400 : 600); if (next.length === pattern.length) { if (next.every((v, i) => v === pattern[i])) { speak('You copied the pattern!'); setTimeout(() => { if (round >= total) onWin(); else { setRound(r => r + 1); setPattern(deal()); setMine([]); setMsg(`Round ${round + 1} — new pattern!`) } }, 900) } else { setMsg(`So close! Watch the colors again and start over. ${name} believes in you!`); speak('So close! Try again.'); setTimeout(() => setMine([]), 800) } } }
-  const row = (arr: string[], onTap?: (c: string) => void) => <div className="blocks">{arr.map((c, i) => <button key={i} className={`block ${c}`} onClick={() => onTap?.(c)} aria-label={`${c} block`}>{c === 'green' ? '🟢' : ''}</button>)}</div>
+  const [pattern, setPattern] = useState(deal); const [mine, setMine] = useState<string[]>([]); const [heldColor, setHeldColor] = useState<string | null>(null)
+  const [samSeq, setSamSeq] = useState<string[] | null>(null); const [busy, setBusy] = useState(false); const slotRef = useRef<HTMLDivElement>(null); const answeredP = useRef(false)
+  const advance = () => { answeredP.current = false; if (round >= total) setTimeout(onWin, 900); else { setRound(r => r + 1); setPattern(deal()); setMine([]); setSamSeq(null); setMsg(`Round ${round + 1} — new pattern! Build it on the table or drag tiles.`) } }
+  const nextOf = (seq: string[]) => { for (const per of [2, 3, 1]) { let ok = true; for (let i = per; i < seq.length; i++) if (seq[i] !== seq[i - per]) { ok = false; break } if (ok) return seq[seq.length % per] } return seq[0] }
+  const onSnap = async (d: string) => { setBusy(true); setMsg('SAM is reading your pattern left to right...'); try { const rs = await Promise.all(['red object', 'blue object', 'green object'].map(w => sam(w, d))); const cols = ['red', 'blue', 'green']; const all: { c: string; x: number; b: any }[] = []; rs.forEach((j: any, ci: number) => (j.boxes || []).forEach((b: any) => all.push({ c: cols[ci], x: b.x1, b }))); all.sort((a, b) => a.x - b.x); if (all.length < 3) { setMsg('SAM needs at least 3 things in a row. Spread them out left to right and snap again!'); setBusy(false); return } setSamSeq(all.map(a => a.c)); setMsg(`SAM read: ${all.map(a => a.c).join(' → ')}. What color comes next?`) } catch { setMsg('SAM is resting — drag the tiles below instead!'); setMode('drag') } setBusy(false) }
+  useEffect(() => { if (!heldColor) return; const up = (e: PointerEvent) => { const r = slotRef.current?.getBoundingClientRect(); if (r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) dropTile() }; window.addEventListener('pointerup', up); return () => window.removeEventListener('pointerup', up) }, [heldColor, mine])
+  const answerNext = (c: string) => { if (!samSeq || answeredP.current) return; if (c === nextOf(samSeq)) { answeredP.current = true; pop(740); setMsg('Yes! You finished SAM\'s pattern!'); speak('You finished the pattern!'); setTimeout(advance, 1100) } else { pop(210); setMsg(`Good try! Say the pattern out loud: ${samSeq.join(', ')}… what repeats?`); speak('Say the pattern out loud!') } }
+  const dropTile = () => { if (!heldColor) return; const c = heldColor; setHeldColor(null); const next = [...mine, c]; if (next[next.length - 1] !== pattern[next.length - 1]) { pop(210); setMsg(`That spot wants ${pattern[next.length - 1]}. Watch the pattern and drag that color!`); return } setMine(next); pop(500); if (next.length === pattern.length) { setMsg('You built the whole pattern!'); speak('You copied the pattern!'); setTimeout(advance, 1000) } }
+  const dot = (c: string, k: any) => <span key={k} className={`patDot ${c}`} aria-label={c}>{c === 'red' ? '🔴' : c === 'blue' ? '🔵' : '🟢'}</span>
   return (<section className="panel"><h1>Rug Pattern Path</h1><GameTop round={round} total={total} onBack={onBack} /><Companion name={name} img={img} msg={msg} />
-    <p className="note">Copy this pattern:</p>{row(pattern)}
-    <p className="note">Your pattern:</p>{mine.length ? row(mine) : <p className="cheer">Tap colors below…</p>}
-    <div className="row"><button className="btn redBtn" onClick={() => tap('red')}>Red</button><button className="btn blueBtn" onClick={() => tap('blue')}>Blue</button><button className="btn" onClick={() => tap('green')}>Green</button><button className="btn ghost" onClick={() => setMine([])}>Start over</button></div>
+    <div className="wordChips"><button className={`btn chipBtn ${mode === 'table' ? '' : 'ghost'}`} onClick={() => setMode('table')}>📷 Table pattern</button><button className={`btn chipBtn ${mode === 'drag' ? '' : 'ghost'}`} onClick={() => setMode('drag')}>🧩 Drag tiles</button></div>
+    {mode === 'table' && <><CameraSnap onSnap={onSnap} />{busy && <p className="cheer">SAM is reading…</p>}
+      {samSeq && <><div className="patRow">{samSeq.map((c, i) => dot(c, i))}<span className="patDot nextDot">?</span></div><p className="ask">What comes next?</p><div className="row"><button className="btn redBtn" onClick={() => answerNext('red')}>Red</button><button className="btn blueBtn" onClick={() => answerNext('blue')}>Blue</button><button className="btn" onClick={() => answerNext('green')}>Green</button></div></>}</>}
+    {mode === 'drag' && <><p className="note">Copy this pattern — drag each tile into the next empty spot:</p><div className="patRow">{pattern.map((c, i) => dot(c, i))}</div>
+      <div className="slotRow" ref={slotRef} onPointerUp={dropTile}>{pattern.map((_, i) => <span key={i} className={`patSlot ${mine[i] ? 'filled' : ''}`}>{mine[i] ? dot(mine[i], i) : i + 1}</span>)}</div>
+      <div className="row">{['red', 'blue', 'green'].map(c => <button key={c} className={`btn ${c === 'red' ? 'redBtn' : c === 'blue' ? 'blueBtn' : ''} ${heldColor === c ? 'heldBtn' : ''}`} onPointerDown={() => setHeldColor(c)}>{c}</button>)}</div>
+      <button className="btn ghost" onClick={() => setMine([])}>Start over</button></>}
     </section>)
 }
 
