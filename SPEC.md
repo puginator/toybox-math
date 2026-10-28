@@ -60,9 +60,21 @@ Build for Your World: Meta's models in a domain the builder knows firsthand (kid
 - Quest text: the prompts kids see at each stop (example shape: help a named stuffy find a counted set of objects to rebuild something). Written for the trail, not improvised.
 - Celebration lines: a small bank of variants per chapter so praise does not repeat every time a chapter clears.
 - Personality: each stuffy gets a trait (brave, silly, shy) that colors its lines. Accessory unlocks can add new lines for that stuffy later.
-- Caching rule: one cached call per chapter, generated once and stored with the chapter, reused every session. Never per frame, never mid-game, so games never wait on the model. Cost is fractions of a cent per story, and because stories are cached they are reviewable: nothing is improvised live in front of a kid.
+- Caching rule: stories are generated at rescue time and stored with the chapter, never per frame, never mid-game, so games never wait on the model. Each chapter gets 2 to 3 cached variants (see Replayability), rotated on replay. Cost is fractions of a cent per story, and because stories are cached they are reviewable: nothing is improvised live in front of a kid.
 - Prompt constraints: age-appropriate, no scary villains, no personal data. The story prompt gets the stuffy's kind and color, never the kid's photo or anything about the kid.
 - The story is a narrator, not a chatbot. The game tells the story, the kid plays. No open-ended chat. This keeps the game clear of the hackathon's banned "simple AI for Education chatbot" category.
+
+## Replayability: every session is different, nothing is a grind
+
+One session shape, fed by every system below: today's theme, today's games, today's quest, and difficulty matched to the player's progress. A kid opening the game tomorrow gets a different session, not a repeat and not a longer grind.
+
+- The room is the randomizer: the kid stages different objects every session, so counting sets are never identical even with fixed problems. Daily object themes steer the variety ("today: kitchen things", "today: all red things"). Themes are prompts, not requirements: any objects work.
+- Seeded problems: a seeded generator produces fresh numbers every run: new ratios, new target sets, new slice answers. Same mechanics, never the same round, even with the same toys. Seeds also make a session reproducible for debugging and for the demo.
+- Rotating mode board: the extra modes (Show me, Build the number, Sort, Balance, Estimation jar, Pattern copy) rotate as "today's games", so each session opens differently instead of the same menu order. The core modes (ratio counting, Fruit Ninja) are always available; the board rotates the extras.
+- Collection that keeps giving: more stuffies to rescue over time, each with its own chapter, personality, and favorite modes. A new stuffy is genuinely new content (new chapter, new lines, new favorite games), not a reskin. This is the return-visit hook, and it rides on the progression already locked in: fast first rescue, then more slots and accessories with play.
+- Difficulty that grows: ratios get trickier as the player succeeds: bigger sets, mixed colors, two-step ratios. Streaks and perfect-round badges are cosmetic only, and there are no fail states, per the kid rules. Difficulty never locks behind a paywall or a grind.
+- Story variants: 2 to 3 chapter variants per stuffy, generated at rescue time, cached with the chapter, rotated on replay. Same rescue, different adventure. Still cached and reviewable, still nothing improvised live.
+- What does NOT randomize: the kid rules. No paid randomness, no loot boxes, no timers, no fail states, no paywalled difficulty. Randomness lives in problems, themes, modes, and stories, never in whether a kid can play.
 
 ## Tech approach
 
