@@ -55,7 +55,13 @@ Build for Your World: Meta's models in a domain the builder knows firsthand (kid
 ## Story and journey
 
 - The trail map is the journey: chapters with stops, each stop a game, finishing a chapter rescues a stuffy or unlocks an accessory.
-- Muse Spark (Meta Model API) generates the story layer: chapter intros tailored to the player's stuffy, quest text at each stop, celebration lines on chapter clears. Generated at session start and cached, never mid-game, so games never wait on the model.
+- Muse Spark (Meta Model API) writes the story layer, and only the story layer: chapter intros, quest text, celebration lines. Nothing else in the game waits on a model call.
+- Chapter intro: one short intro per rescued stuffy, 2 to 4 sentences in simple read-aloud language: why this stuffy needs rescuing, what its little world looks like, what the quest is. Tailored to the stuffy's kind and color.
+- Quest text: the prompts kids see at each stop (example shape: help a named stuffy find a counted set of objects to rebuild something). Written for the trail, not improvised.
+- Celebration lines: a small bank of variants per chapter so praise does not repeat every time a chapter clears.
+- Personality: each stuffy gets a trait (brave, silly, shy) that colors its lines. Accessory unlocks can add new lines for that stuffy later.
+- Caching rule: one cached call per chapter, generated once and stored with the chapter, reused every session. Never per frame, never mid-game, so games never wait on the model. Cost is fractions of a cent per story, and because stories are cached they are reviewable: nothing is improvised live in front of a kid.
+- Prompt constraints: age-appropriate, no scary villains, no personal data. The story prompt gets the stuffy's kind and color, never the kid's photo or anything about the kid.
 - The story is a narrator, not a chatbot. The game tells the story, the kid plays. No open-ended chat. This keeps the game clear of the hackathon's banned "simple AI for Education chatbot" category.
 
 ## Tech approach
