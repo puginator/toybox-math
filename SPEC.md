@@ -91,6 +91,17 @@ One session shape, fed by every system below: today's theme, today's games, toda
 - Not a banned category: not a nutrition coach, not a simple image analyzer, not an education chatbot, not a medical advisor.
 - Submission due Wed Nov 4, 2026, 6:00 PM PT via the Cerebral Valley platform.
 
+## Judging rubric (from the participant guide)
+
+Agents working in this repo should build toward these four scored criteria, in weight order. Every feature decision should be defensible against at least one of them.
+
+- Impact, 30%: a real problem for real users. Kids who hate worksheets get camera math with their own toys, no account, no install, playable in a browser.
+- Use of Meta AI Tooling, 25%: SAM 3.1 and Spark are core mechanics, not decoration. No SAM, no stuffy cutout, no counting, no hand slicing. No Spark, no story layer.
+- Technical Depth, 20%: SAM anchor plus on-device tracker for the real-time loop, one segment-and-count pipeline reused across all modes, seeded problem generator, cached story variants.
+- Demo, 25%: a 3-minute video showing only event-built features, one full session end to end: photo, stuffy, ratio game, Fruit Ninja, rescue.
+
+Separate from the 100% rubric, bonus categories exist (Most Viral, Best Open Weight Build, Community Vote, Best Agentic Use-Case, Best Creative Build). Do not chase a bonus at the expense of a scored criterion. In particular, agent-built code does not earn Best Agentic Use-Case: that bonus is about the product's own agentic behavior.
+
 ## Build plan (Oct 27 - Nov 4)
 
 - Oct 27-28: scaffold plus SAM spike. Photo upload to stuffy cutout working, ratio counting prototype working. Validate SAM latency and counting accuracy on real photos before building on top of it. Claim the $150 Meta Model API credits day one, since distribution runs in batches.
